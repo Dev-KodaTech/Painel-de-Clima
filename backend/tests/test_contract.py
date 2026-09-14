@@ -44,10 +44,23 @@ async def test_forecast_ainda_traz_os_campos_usados():
         assert campo in previsao
     for campo in ("time", "temperature_2m", "apparent_temperature", "weather_code", "is_day"):
         assert campo in previsao["current"]
-    for campo in ("temperature_2m_max", "temperature_2m_min"):
+    for campo in open_meteo.VARIAVEIS_DIARIAS:
         assert previsao["daily"][campo]
+    assert previsao["hourly"]["temperature_2m"]
+
+    # Sete dias pedidos, sete devolvidos — e as horas acompanham os dias.
+    assert len(previsao["daily"]["time"]) == open_meteo.DIAS_DE_PREVISAO
+    assert len(previsao["hourly"]["time"]) == open_meteo.DIAS_DE_PREVISAO * 24
 
     # As armadilhas de formato, verificadas explicitamente.
     assert isinstance(previsao["current"]["weather_code"], int)
-    assert "+" not in previsao["current"]["time"]
-    assert "Z" not in previsao["current"]["time"]
+    for timestamp in (
+        previsao["current"]["time"],
+        previsao["hourly"]["time"][0],
+        previsao["daily"]["sunrise"][0],
+    ):
+        assert "+" not in timestamp
+        assert "Z" not in timestamp
+
+    # O bloco horario comeca a meia-noite do dia corrente, nunca "agora".
+    assert previsao["hourly"]["time"][0].endswith("T00:00")

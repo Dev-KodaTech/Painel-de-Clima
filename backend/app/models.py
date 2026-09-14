@@ -1,7 +1,7 @@
 """Modelos Pydantic que espelham o payload 1:1.
 
 Servem de contrato e geram o schema OpenAPI. Esta fatia cobre `location`,
-`current`, `units` e `attribution`; os blocos `hourly`, `daily`, `sun`,
+`current`, `hourly`, `daily`, `sun`, `units` e `attribution`; os blocos
 `alerts` e `nearby` entram nos tickets seguintes.
 """
 
@@ -93,6 +93,38 @@ class Current(BaseModel):
     low: float
 
 
+class HourlyPoint(BaseModel):
+    """Um ponto do grafico de tendencia: a temperatura de uma hora."""
+
+    time: str = Field(
+        description="Horario local de parede, sem sufixo de fuso (`2026-09-14T15:00`)."
+    )
+    temperature: float
+
+
+class DailyPoint(BaseModel):
+    """Um dia da previsao da semana.
+
+    Um unico bloco `daily` alimenta dois paineis — previsao da semana e
+    precipitacao —, porque o design mostra os mesmos sete dias em ambos.
+    """
+
+    date: str = Field(description="Data local da cidade (`2026-09-14`), sem horario.")
+    weather_code: int
+    description: str
+    icon: str
+    high: float
+    low: float
+    precipitation_mm: float
+
+
+class Sun(BaseModel):
+    """Nascer e por do sol do dia corrente, no fuso da cidade."""
+
+    sunrise: str
+    sunset: str
+
+
 class Units(BaseModel):
     temperature: str
     precipitation: str
@@ -103,11 +135,14 @@ class Units(BaseModel):
 class WeatherResponse(BaseModel):
     """O painel. Um objeto por painel da interface.
 
-    Nesta fatia so `location`, `current`, `units` e `attribution`; os demais
-    blocos entram conforme os paineis forem construidos.
+    Nesta fatia faltam `alerts` e `nearby`, que entram com os paineis de
+    condicoes previstas e cidades proximas.
     """
 
     location: Location
     current: Current
+    hourly: list[HourlyPoint]
+    daily: list[DailyPoint]
+    sun: Sun
     units: Units
     attribution: str

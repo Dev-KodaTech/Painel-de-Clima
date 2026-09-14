@@ -50,10 +50,31 @@ async def buscar_cidades(
     return payload.get("results", [])
 
 
+#: Quantos dias de previsao pedir. Sete e o que o painel da semana exibe.
+#:
+#: O bloco `hourly` acompanha: pedir sete dias traz **168 horas**, das quais o
+#: grafico usa so as 24 do dia corrente. Pedir um dia de horas e sete de dias
+#: numa mesma chamada nao e possivel — a API aplica `forecast_days` aos dois
+#: blocos —, e uma segunda chamada so para as horas custaria mais que os ~18 KB
+#: que as 144 horas extras somam.
+DIAS_DE_PREVISAO = 7
+
+#: As variaveis diarias. `sunrise`/`sunset` alimentam o painel do sol e
+#: `precipitation_sum` o de precipitacao, ambos por dia.
+VARIAVEIS_DIARIAS = (
+    "weather_code",
+    "temperature_2m_max",
+    "temperature_2m_min",
+    "sunrise",
+    "sunset",
+    "precipitation_sum",
+)
+
+
 async def buscar_previsao(
     client: httpx.AsyncClient, latitude: float, longitude: float
 ) -> dict:
-    """Busca o tempo atual e os extremos do dia para uma coordenada.
+    """Busca o tempo atual, a tendencia horaria e os sete dias de uma coordenada.
 
     `timezone=auto` faz a API resolver o fuso pela coordenada e devolver os
     timestamps ja em horario local da cidade.
@@ -65,9 +86,10 @@ async def buscar_previsao(
             "latitude": latitude,
             "longitude": longitude,
             "current": "temperature_2m,apparent_temperature,weather_code,is_day",
-            "daily": "temperature_2m_max,temperature_2m_min",
+            "hourly": "temperature_2m",
+            "daily": ",".join(VARIAVEIS_DIARIAS),
             "timezone": "auto",
-            "forecast_days": 1,
+            "forecast_days": DIAS_DE_PREVISAO,
         },
     )
 

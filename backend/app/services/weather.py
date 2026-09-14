@@ -8,7 +8,10 @@ from app.models import (
     Cidade,
     CidadeEscolhida,
     Current,
+    DailyPoint,
+    HourlyPoint,
     Location,
+    Sun,
     Units,
     WeatherResponse,
 )
@@ -55,6 +58,46 @@ async def montar_painel(
     return _montar(previsao, cidade)
 
 
+def _horas_do_dia(hourly: dict, dia: str) -> list[HourlyPoint]:
+    """As 24 horas de `dia`, recortadas do bloco horario de sete dias.
+
+    Pedir sete dias de previsao traz 168 horas. O recorte e **por data**, nunca
+    por posicao ou por "as proximas 24 a partir de agora": o design mostra o dia
+    inteiro, de 00:00 a 23:00, com a hora atual marcada na curva. Uma janela
+    rolante faria o eixo do grafico mudar a cada hora, e as 02:00 quase tudo
+    seria futuro enquanto as 22:00 quase tudo seria passado.
+    """
+    return [
+        HourlyPoint(time=time, temperature=temperatura)
+        for time, temperatura in zip(hourly["time"], hourly["temperature_2m"])
+        if time.startswith(dia)
+    ]
+
+
+def _dias(daily: dict) -> list[DailyPoint]:
+    """Os sete dias da previsao, com o codigo WMO ja traduzido.
+
+    O icone e sempre o diurno: um dia inteiro nao tem variante noturna, e
+    herdar o `is_day` da leitura atual poria uma lua no card de amanha as tres
+    da manha.
+    """
+    dias = []
+    for indice, data in enumerate(daily["time"]):
+        description, icon = traduzir(daily["weather_code"][indice], is_day=True)
+        dias.append(
+            DailyPoint(
+                date=data,
+                weather_code=daily["weather_code"][indice],
+                description=description,
+                icon=icon,
+                high=daily["temperature_2m_max"][indice],
+                low=daily["temperature_2m_min"][indice],
+                precipitation_mm=daily["precipitation_sum"][indice],
+            )
+        )
+    return dias
+
+
 def _montar(previsao: dict, cidade: CidadeEscolhida) -> WeatherResponse:
     current = previsao["current"]
     daily = previsao["daily"]
@@ -62,6 +105,10 @@ def _montar(previsao: dict, cidade: CidadeEscolhida) -> WeatherResponse:
     # `is_day` vem como inteiro (0/1), nao booleano.
     is_day = bool(current["is_day"])
     description, icon = traduzir(current["weather_code"], is_day)
+
+    # O dia corrente e o primeiro do bloco diario, nao a data de `current`:
+    # ambos coincidem, mas o bloco diario e quem define a semana exibida.
+    hoje = daily["time"][0]
 
     return WeatherResponse(
         location=Location(
@@ -89,6 +136,13 @@ def _montar(previsao: dict, cidade: CidadeEscolhida) -> WeatherResponse:
             # Do bloco diario: a API nao fornece maxima e minima em `current`.
             high=daily["temperature_2m_max"][0],
             low=daily["temperature_2m_min"][0],
+        ),
+        hourly=_horas_do_dia(previsao["hourly"], hoje),
+        daily=_dias(daily),
+        sun=Sun(
+            # Do primeiro dia: o painel do sol e de hoje, nao da semana.
+            sunrise=daily["sunrise"][0],
+            sunset=daily["sunset"][0],
         ),
         units=Units(**UNIDADES_PADRAO),
         attribution=ATRIBUICAO,

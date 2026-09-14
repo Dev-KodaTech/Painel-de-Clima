@@ -1,9 +1,11 @@
 /**
- * A primeira fatia do painel: buscar uma cidade e ver o card do dia.
+ * O painel: busca de cidade, card do dia, tendencia horaria, previsao da semana
+ * e horarios do sol.
  *
- * Os demais paineis (tendencia horaria, semana, sol, precipitacao, condicoes
- * previstas, cidades proximas) entram nos tickets seguintes, no grid de tres
- * faixas descrito na spec.
+ * O grid segue as tres faixas da spec, com proporcoes proprias em vez de doze
+ * colunas — um grid de 12 nao reproduz as larguras do design. Os paineis que
+ * faltam (precipitacao, condicoes previstas, cidades proximas) ocupam as vagas
+ * restantes das faixas 2 e 3 nos tickets seguintes.
  */
 
 import { useEffect, useState } from "react";
@@ -11,6 +13,9 @@ import { buscarPainel, mensagemDeErro } from "./api/client";
 import type { Cidade, WeatherResponse } from "./api/types";
 import { BuscaCidade } from "./components/BuscaCidade";
 import { CardDoDia } from "./components/CardDoDia";
+import { CardSol } from "./components/CardSol";
+import { PrevisaoSemana } from "./components/PrevisaoSemana";
+import { TendenciaTemperatura } from "./components/TendenciaTemperatura";
 
 /**
  * O painel e sempre um destes quatro estados, nunca uma combinacao deles.
@@ -47,7 +52,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen">
-      <div className="mx-auto flex max-w-5xl flex-col gap-4 px-6 py-8">
+      <div className="mx-auto flex max-w-[1180px] flex-col gap-4 px-6 py-8">
         <header className="flex flex-wrap items-center justify-between gap-4">
           <h1 className="text-sm font-semibold">Painel de Clima</h1>
           <BuscaCidade
@@ -79,12 +84,30 @@ export default function App() {
           )}
 
           {estado.tipo === "pronto" && (
-            <div className="max-w-md">
-              <CardDoDia
-                location={estado.painel.location}
-                current={estado.painel.current}
-                units={estado.painel.units}
-              />
+            <div className="flex flex-col gap-4">
+              {/* Faixa 1: card do dia e tendencia de temperatura. */}
+              <div className="grid grid-cols-[1.05fr_1.5fr] gap-4">
+                <CardDoDia
+                  location={estado.painel.location}
+                  current={estado.painel.current}
+                  units={estado.painel.units}
+                />
+                <TendenciaTemperatura
+                  hourly={estado.painel.hourly}
+                  observedAt={estado.painel.current.observed_at}
+                  units={estado.painel.units}
+                />
+              </div>
+
+              {/* Faixa 2: previsao da semana e horarios do sol. A terceira
+                  coluna, cidades proximas, entra no ticket 24. */}
+              <div className="grid grid-cols-[1.35fr_.75fr] gap-4">
+                <PrevisaoSemana
+                  daily={estado.painel.daily}
+                  units={estado.painel.units}
+                />
+                <CardSol sun={estado.painel.sun} />
+              </div>
             </div>
           )}
         </main>

@@ -73,7 +73,47 @@ GEOCODING_SPRINGFIELD = {
 #: simplesmente nao existe na resposta.
 GEOCODING_VAZIO = {"generationtime_ms": 0.45}
 
+#: As 24 temperaturas do dia corrente, na resolucao real (uma por hora). O
+#: grafico do painel exibe exatamente estas.
+TEMPERATURAS_DIA_CORRENTE = [
+    16.9, 16.7, 16.7, 16.5, 16.3, 15.8, 15.1, 14.3,
+    13.7, 13.7, 14.0, 14.9, 15.6, 15.9, 16.5, 16.9,
+    17.0, 17.2, 17.1, 16.8, 16.3, 15.7, 15.1, 14.5,
+]
+
+DIAS_DA_PREVISAO = [
+    "2026-09-14",
+    "2026-09-15",
+    "2026-09-16",
+    "2026-09-17",
+    "2026-09-18",
+    "2026-09-19",
+    "2026-09-20",
+]
+
+
+def _horas_de_sete_dias() -> dict:
+    """O bloco `hourly` como a API o devolve: 168 pontos, nao 24.
+
+    Pedir sete dias de previsao traz sete dias de horas. So o primeiro dia
+    interessa ao grafico, e as temperaturas dele sao as reais; os demais dias
+    recebem valores deslocados apenas para que o recorte errado se revele —
+    um recorte que pegasse 24 pontos da posicao errada mostraria outro dia.
+    """
+    horas = []
+    temperaturas = []
+    for indice, dia in enumerate(DIAS_DA_PREVISAO):
+        for hora, temperatura in enumerate(TEMPERATURAS_DIA_CORRENTE):
+            horas.append(f"{dia}T{hora:02d}:00")
+            temperaturas.append(round(temperatura + indice, 1))
+    return {"time": horas, "temperature_2m": temperaturas}
+
+
 #: Previsao de Berlim. `utc_offset_seconds` nao-zero, timestamps sem sufixo.
+#:
+#: Reproduz a resposta real de sete dias: `hourly` traz **168 pontos** (7 x 24),
+#: nao 24 — quem quiser o dia corrente precisa recorta-lo. O bloco comeca a
+#: meia-noite do dia corrente, nunca "agora".
 FORECAST_BERLIM = {
     "latitude": 52.52,
     "longitude": 13.419998,
@@ -98,14 +138,48 @@ FORECAST_BERLIM = {
         "weather_code": 3,
         "is_day": 0,
     },
+    "hourly_units": {"time": "iso8601", "temperature_2m": "°C"},
+    "hourly": _horas_de_sete_dias(),
     "daily_units": {
         "time": "iso8601",
+        "weather_code": "wmo code",
         "temperature_2m_max": "°C",
         "temperature_2m_min": "°C",
+        "sunrise": "iso8601",
+        "sunset": "iso8601",
+        "precipitation_sum": "mm",
     },
     "daily": {
-        "time": ["2026-09-14"],
-        "temperature_2m_max": [17.2],
-        "temperature_2m_min": [13.7],
+        "time": [
+            "2026-09-14",
+            "2026-09-15",
+            "2026-09-16",
+            "2026-09-17",
+            "2026-09-18",
+            "2026-09-19",
+            "2026-09-20",
+        ],
+        "weather_code": [3, 3, 95, 3, 3, 61, 3],
+        "temperature_2m_max": [17.2, 24.7, 20.4, 19.2, 19.8, 16.8, 17.8],
+        "temperature_2m_min": [13.7, 11.8, 15.0, 12.7, 13.6, 10.9, 13.3],
+        "sunrise": [
+            "2026-09-14T06:38",
+            "2026-09-15T06:40",
+            "2026-09-16T06:42",
+            "2026-09-17T06:43",
+            "2026-09-18T06:45",
+            "2026-09-19T06:47",
+            "2026-09-20T06:48",
+        ],
+        "sunset": [
+            "2026-09-14T19:23",
+            "2026-09-15T19:21",
+            "2026-09-16T19:19",
+            "2026-09-17T19:16",
+            "2026-09-18T19:14",
+            "2026-09-19T19:12",
+            "2026-09-20T19:09",
+        ],
+        "precipitation_sum": [0.0, 0.0, 6.0, 0.0, 0.0, 2.4, 0.0],
     },
 }

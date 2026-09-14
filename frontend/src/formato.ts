@@ -18,6 +18,27 @@ const DIAS = [
   "quinta-feira", "sexta-feira", "sabado",
 ];
 
+/** Abreviacoes para o painel da semana, onde sete nomes inteiros nao caberiam. */
+const DIAS_CURTOS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sab"];
+
+const MESES_CURTOS = [
+  "jan", "fev", "mar", "abr", "mai", "jun",
+  "jul", "ago", "set", "out", "nov", "dez",
+];
+
+/**
+ * O indice do dia da semana de uma data `AAAA-MM-DD`.
+ *
+ * A aritmetica de calendario e feita em UTC sobre os componentes ja separados,
+ * justamente para que o fuso do browser nao entre na conta: `new Date(texto)`
+ * sobre um timestamp sem offset seria lido no fuso do usuario e poderia cair no
+ * dia anterior.
+ */
+function indiceDoDia(data: string): number {
+  const [ano, mes, dia] = data.slice(0, 10).split("-").map(Number);
+  return new Date(Date.UTC(ano, mes - 1, dia)).getUTCDay();
+}
+
 /**
  * "domingo, 14 de setembro" a partir de `2026-09-14T03:00`.
  *
@@ -26,9 +47,34 @@ const DIAS = [
  * browser nao entre na conta.
  */
 export function dataPorExtenso(timestamp: string): string {
-  const [ano, mes, dia] = timestamp.slice(0, 10).split("-").map(Number);
-  const diaDaSemana = DIAS[new Date(Date.UTC(ano, mes - 1, dia)).getUTCDay()];
-  return `${diaDaSemana}, ${dia} de ${MESES[mes - 1]}`;
+  const [, mes, dia] = timestamp.slice(0, 10).split("-").map(Number);
+  return `${DIAS[indiceDoDia(timestamp)]}, ${dia} de ${MESES[mes - 1]}`;
+}
+
+/** "Dom" a partir de `2026-09-14`: o rotulo de uma coluna da semana. */
+export function diaDaSemanaCurto(data: string): string {
+  return DIAS_CURTOS[indiceDoDia(data)];
+}
+
+/** "14 set" a partir de `2026-09-14`, para datar um dia sem repetir o ano. */
+export function dataCurta(data: string): string {
+  const [, mes, dia] = data.slice(0, 10).split("-").map(Number);
+  return `${dia} ${MESES_CURTOS[mes - 1]}`;
+}
+
+/**
+ * A hora de um timestamp como numero (0-23), para posicionar no grafico.
+ *
+ * Recorte de texto, como todo o resto deste modulo: a hora exibida e a da
+ * cidade, e uma conversao a moveria para o fuso do usuario.
+ */
+export function horaComoNumero(timestamp: string): number {
+  return Number(timestamp.slice(11, 13));
+}
+
+/** "16h" — o rotulo esparso do eixo do grafico, onde "16:00" nao caberia. */
+export function horaCurta(hora: number): string {
+  return `${hora}h`;
 }
 
 /** "03:00" a partir de `2026-09-14T03:00`. Recorte, nao conversao. */

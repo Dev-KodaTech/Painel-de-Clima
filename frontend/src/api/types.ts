@@ -54,6 +54,34 @@ export type Current = {
   low: number;
 };
 
+/** Um ponto do grafico de tendencia. */
+export type HourlyPoint = {
+  /** Horario de parede da cidade, sem sufixo (`2026-09-14T15:00`). */
+  time: string;
+  temperature: number;
+};
+
+/**
+ * Um dia da previsao. Um unico bloco alimenta dois paineis — semana e
+ * precipitacao —, porque o design mostra os mesmos sete dias em ambos.
+ */
+export type DailyPoint = {
+  /** Data local da cidade (`2026-09-14`), sem horario. */
+  date: string;
+  weather_code: number;
+  description: string;
+  icon: string;
+  high: number;
+  low: number;
+  precipitation_mm: number;
+};
+
+export type Sun = {
+  /** Horario de parede da cidade: "19:23" significa 19:23 la. */
+  sunrise: string;
+  sunset: string;
+};
+
 export type Units = {
   temperature: string;
   precipitation: string;
@@ -64,6 +92,11 @@ export type Units = {
 export type WeatherResponse = {
   location: Location;
   current: Current;
+  /** As 24 horas do dia corrente, 00:00 a 23:00 — nao uma janela rolante. */
+  hourly: HourlyPoint[];
+  /** Sete dias, comecando hoje. */
+  daily: DailyPoint[];
+  sun: Sun;
   units: Units;
   attribution: string;
 };

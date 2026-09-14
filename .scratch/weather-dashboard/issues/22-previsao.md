@@ -4,16 +4,16 @@
 
 **Blocked by:** 21
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 Referência: [spec](../spec.md), "Contrato da API" e a armadilha nº 3 de "Armadilhas de formato da API externa".
 
-- [ ] Payload ganha os blocos `hourly` (24 pontos), `daily` (7 dias) e `sun`
-- [ ] `hourly` traz as **24 horas do dia corrente** (00:00–23:00), não uma janela rolante a partir de agora
-- [ ] Timestamps viajam **sem sufixo de fuso**, como a API os devolve, acompanhados de `timezone` e `utc_offset_seconds`
-- [ ] O frontend trata os timestamps como horário de parede da cidade, **nunca** via conversão UTC
-- [ ] Gráfico de tendência com a hora atual marcada e rótulos esparsos no eixo (~7 marcas, não 24)
-- [ ] Painel de previsão da semana com o dia de hoje destacado
-- [ ] Painel de nascer/pôr do sol
-- [ ] Teste na costura HTTP: cidade com offset não-zero preserva os horários sem deslocamento
-- [ ] Teste: `hourly` tem 24 pontos e `daily` tem 7
+- [x] Payload ganha os blocos `hourly` (24 pontos), `daily` (7 dias) e `sun`
+- [x] `hourly` traz as **24 horas do dia corrente** (00:00–23:00), não uma janela rolante a partir de agora
+- [x] Timestamps viajam **sem sufixo de fuso**, como a API os devolve, acompanhados de `timezone` e `utc_offset_seconds`
+- [x] O frontend trata os timestamps como horário de parede da cidade, **nunca** via conversão UTC
+- [x] Gráfico de tendência com a hora atual marcada e rótulos esparsos no eixo (~7 marcas, não 24)
+- [x] Painel de previsão da semana com o dia de hoje destacado
+- [x] Painel de nascer/pôr do sol
+- [x] Teste na costura HTTP: cidade com offset não-zero preserva os horários sem deslocamento
+- [x] Teste: `hourly` tem 24 pontos e `daily` tem 7
