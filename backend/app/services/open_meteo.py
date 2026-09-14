@@ -61,6 +61,10 @@ DIAS_DE_PREVISAO = 7
 
 #: As variaveis diarias. `sunrise`/`sunset` alimentam o painel do sol e
 #: `precipitation_sum` o de precipitacao, ambos por dia.
+#:
+#: `wind_gusts_10m_max` nao alimenta painel algum diretamente: existe so para
+#: derivar a condicao severa de vento. E a unica variavel pedida que nao e
+#: exibida como tal — a rajada aparece no texto do card, nunca numa coluna.
 VARIAVEIS_DIARIAS = (
     "weather_code",
     "temperature_2m_max",
@@ -68,6 +72,7 @@ VARIAVEIS_DIARIAS = (
     "sunrise",
     "sunset",
     "precipitation_sum",
+    "wind_gusts_10m_max",
 )
 
 

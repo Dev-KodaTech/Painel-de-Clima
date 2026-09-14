@@ -82,6 +82,28 @@ export type Sun = {
   sunset: string;
 };
 
+/**
+ * Uma condicao severa **derivada da previsao**, nao um alerta oficial.
+ *
+ * A distincao nao e formalidade: alerta meteorologico e a categoria de
+ * informacao em que pessoas tomam decisao de seguranca, e a fonte aqui nao e
+ * defesa civil. A interface rotula cada card como derivado.
+ */
+export type Alerta = {
+  kind: "storm" | "wind" | "rain";
+  /** Data local da cidade do dia representado. */
+  date: string;
+  label: string;
+  icon: string;
+  /** O valor que disparou, ja em texto: "Rajadas de 86 km/h". */
+  detail: string;
+  /**
+   * Quantos **outros** dias disparam a mesma categoria. Ha um card por
+   * categoria: sem esta contagem, os demais dias sumiriam sem deixar rastro.
+   */
+  also_days: number;
+};
+
 export type Units = {
   temperature: string;
   precipitation: string;
@@ -97,6 +119,8 @@ export type WeatherResponse = {
   /** Sete dias, comecando hoje. */
   daily: DailyPoint[];
   sun: Sun;
+  /** No maximo duas. Lista vazia e o caminho normal, nao erro. */
+  alerts: Alerta[];
   units: Units;
   attribution: string;
 };

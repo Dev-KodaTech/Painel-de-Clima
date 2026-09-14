@@ -15,7 +15,7 @@ from app.models import (
     Units,
     WeatherResponse,
 )
-from app.services import open_meteo
+from app.services import alertas, open_meteo
 from app.services.wmo import traduzir
 
 
@@ -144,6 +144,9 @@ def _montar(previsao: dict, cidade: CidadeEscolhida) -> WeatherResponse:
             sunrise=daily["sunrise"][0],
             sunset=daily["sunset"][0],
         ),
+        # Derivadas da mesma semana que o painel exibe: nao ha fonte oficial de
+        # alerta aqui, e a interface diz isso em cada card.
+        alerts=alertas.derivar(daily),
         units=Units(**UNIDADES_PADRAO),
         attribution=ATRIBUICAO,
     )

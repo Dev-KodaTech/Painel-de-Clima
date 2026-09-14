@@ -102,3 +102,14 @@ export function populacao(valor: number | null): string | null {
 export function procedencia(admin1: string | null, country: string): string {
   return [admin1, country].filter(Boolean).join(", ");
 }
+
+/**
+ * "6,0 mm" / "0 mm": a chuva de um dia, com a unidade vinda do payload.
+ *
+ * A casa decimal so aparece quando ha chuva. Num dia seco, "0,0 mm" sugere uma
+ * precisao que nao existe e polui a coluna de sete dias; "0 mm" e o suficiente.
+ */
+export function precipitacao(valor: number, unidade: string): string {
+  if (valor === 0) return `0 ${unidade}`;
+  return `${valor.toFixed(1).replace(".", ",")} ${unidade}`;
+}

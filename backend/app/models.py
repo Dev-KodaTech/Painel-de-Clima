@@ -1,9 +1,11 @@
 """Modelos Pydantic que espelham o payload 1:1.
 
 Servem de contrato e geram o schema OpenAPI. Esta fatia cobre `location`,
-`current`, `hourly`, `daily`, `sun`, `units` e `attribution`; os blocos
-`alerts` e `nearby` entram nos tickets seguintes.
+`current`, `hourly`, `daily`, `sun`, `alerts`, `units` e `attribution`; o
+bloco `nearby` entra no ticket seguinte.
 """
+
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -125,6 +127,36 @@ class Sun(BaseModel):
     sunset: str
 
 
+class Alerta(BaseModel):
+    """Uma condicao severa **derivada da previsao**, nao um alerta oficial.
+
+    A Open-Meteo nao tem alertas meteorologicos, e a distincao importa: alerta
+    e a categoria de informacao em que pessoas tomam decisao de seguranca. O
+    payload nao esconde a origem — a interface rotula cada card como derivado.
+
+    O card mostra categoria, data e o valor da metrica que disparou, e nao a
+    temperatura que o design de referencia exibe: maxima e minima nada dizem
+    sobre vento ou tempestade.
+    """
+
+    # Literal, e nao `str`: as tres categorias sao fechadas, e o schema
+    # OpenAPI passa a carregar o enum que o frontend ja declara como uniao.
+    kind: Literal["storm", "wind", "rain"]
+    date: str = Field(description="Data local da cidade do dia representado.")
+    label: str
+    icon: str
+    detail: str = Field(
+        description="O valor que disparou, ja em texto: `Rajadas de 86 km/h`."
+    )
+    also_days: int = Field(
+        description=(
+            "Quantos outros dias da semana disparam a mesma categoria. Existe "
+            "porque ha **um card por categoria**: sem esta contagem, os demais "
+            "dias sumiriam sem deixar rastro."
+        )
+    )
+
+
 class Units(BaseModel):
     temperature: str
     precipitation: str
@@ -135,8 +167,7 @@ class Units(BaseModel):
 class WeatherResponse(BaseModel):
     """O painel. Um objeto por painel da interface.
 
-    Nesta fatia faltam `alerts` e `nearby`, que entram com os paineis de
-    condicoes previstas e cidades proximas.
+    Nesta fatia falta `nearby`, que entra com o painel de cidades proximas.
     """
 
     location: Location
@@ -144,5 +175,12 @@ class WeatherResponse(BaseModel):
     hourly: list[HourlyPoint]
     daily: list[DailyPoint]
     sun: Sun
+    alerts: list[Alerta] = Field(
+        description=(
+            "Condicoes severas previstas, no maximo duas. Lista vazia e o "
+            "caminho normal, nao erro: duas das seis cidades da amostra caem "
+            "nele, e o painel mostra o estado vazio em vez de sumir."
+        )
+    )
     units: Units
     attribution: str

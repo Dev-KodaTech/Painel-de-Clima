@@ -183,3 +183,98 @@ FORECAST_BERLIM = {
         "precipitation_sum": [0.0, 0.0, 6.0, 0.0, 0.0, 2.4, 0.0],
     },
 }
+
+
+# ---------------------------------------------------------------------------
+# Condicoes severas: seis cidades de perfis climaticos opostos.
+#
+# Blocos `daily` gravados do servico real numa unica chamada multi-coordenada
+# (`../.scratch/weather-dashboard/probe-alertas.json`). Sao a amostra sobre a
+# qual os limiares foram calibrados, e existem aqui para que a regra nao possa
+# mudar em silencio: cada cidade cobre um caso que a regra tem de acertar.
+#
+# As datas de Miami foram deslocadas para a mesma semana das demais; so a
+# posicao relativa dos dias importa, e uma semana comum torna os testes
+# comparaveis.
+
+#: Litoranea: vento >= 60 km/h em **cinco** dos sete dias. O caso que derrubou
+#: a regra sem dedup — cinco cards identicos de vento.
+DAILY_WELLINGTON = {
+    "time": DIAS_DA_PREVISAO,
+    "weather_code": [3, 3, 51, 81, 51, 51, 51],
+    "wind_gusts_10m_max": [37.1, 69.5, 86.4, 76.3, 59.0, 79.6, 80.6],
+    "precipitation_sum": [0.0, 0.0, 0.4, 14.5, 0.3, 0.4, 0.2],
+    "temperature_2m_max": [14.2, 14.4, 14.1, 14.2, 12.2, 15.4, 13.7],
+    "temperature_2m_min": [9.6, 10.5, 11.9, 9.6, 9.7, 7.5, 12.6],
+}
+
+#: Duas categorias no mesmo dia: vento de 86 km/h e chuva de 27,9 mm.
+DAILY_REYKJAVIK = {
+    "time": DIAS_DA_PREVISAO,
+    "weather_code": [51, 3, 81, 53, 81, 55, 51],
+    "wind_gusts_10m_max": [56.2, 44.3, 86.0, 29.5, 51.5, 46.8, 36.4],
+    "precipitation_sum": [0.5, 0.0, 27.9, 2.9, 14.8, 10.4, 1.1],
+    "temperature_2m_max": [11.5, 9.4, 11.6, 10.7, 9.8, 10.4, 9.8],
+    "temperature_2m_min": [8.2, 6.7, 8.0, 8.6, 8.3, 7.5, 6.8],
+}
+
+#: Tempestade (95) sem vento nem chuva acima do limiar: a categoria sozinha.
+DAILY_INNSBRUCK = {
+    "time": DIAS_DA_PREVISAO,
+    "weather_code": [81, 45, 95, 61, 3, 3, 3],
+    "wind_gusts_10m_max": [16.9, 10.1, 19.1, 13.3, 10.8, 9.4, 12.6],
+    "precipitation_sum": [13.6, 0.0, 9.8, 2.6, 0.0, 0.0, 0.0],
+    "temperature_2m_max": [21.5, 25.2, 23.3, 16.6, 17.7, 22.3, 24.3],
+    "temperature_2m_min": [13.7, 11.4, 14.7, 11.4, 11.7, 9.4, 11.7],
+}
+
+#: Chove quase todo dia, nunca muito: o estado vazio como caminho normal.
+DAILY_SINGAPURA = {
+    "time": DIAS_DA_PREVISAO,
+    "weather_code": [80, 51, 3, 80, 51, 53, 55],
+    "wind_gusts_10m_max": [37.4, 30.2, 29.5, 28.1, 26.6, 29.5, 37.1],
+    "precipitation_sum": [5.8, 0.8, 0.0, 5.7, 1.5, 3.6, 7.8],
+    "temperature_2m_max": [30.9, 32.1, 32.6, 32.2, 33.1, 30.0, 31.7],
+    "temperature_2m_min": [25.4, 25.2, 23.7, 24.9, 24.4, 23.4, 24.2],
+}
+
+#: Seco e quente: nenhuma precipitacao na semana inteira. Vazio tambem.
+DAILY_CAIRO = {
+    "time": DIAS_DA_PREVISAO,
+    "weather_code": [45, 2, 45, 2, 2, 3, 3],
+    "wind_gusts_10m_max": [32.0, 34.9, 23.8, 36.4, 30.2, 32.4, 32.4],
+    "precipitation_sum": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+    "temperature_2m_max": [37.3, 36.7, 37.1, 38.2, 32.2, 32.5, 33.9],
+    "temperature_2m_min": [22.1, 23.1, 21.9, 25.1, 22.6, 22.4, 21.5],
+}
+
+#: Duas categorias em dias distintos: chuva de 104,4 mm no primeiro dia e
+#: tempestade (96) no sexto. O caso de dois cards com datas diferentes.
+DAILY_MIAMI = {
+    "time": DIAS_DA_PREVISAO,
+    "weather_code": [82, 3, 3, 55, 80, 96, 51],
+    "wind_gusts_10m_max": [20.2, 22.0, 25.2, 26.3, 23.8, 22.7, 24.1],
+    "precipitation_sum": [104.4, 0.0, 0.0, 7.2, 8.3, 3.6, 0.9],
+    "temperature_2m_max": [32.4, 30.6, 31.0, 29.7, 30.1, 29.0, 30.8],
+    "temperature_2m_min": [24.9, 24.2, 24.2, 27.4, 27.2, 28.2, 28.0],
+}
+
+
+def forecast_com_daily(daily: dict) -> dict:
+    """A previsao de Berlim com outro bloco diario.
+
+    As condicoes severas dependem so do bloco `daily`; o resto do payload e o
+    mesmo em qualquer cidade. Trocar apenas o bloco mantem cada fixture legivel
+    como o que ela e — uma semana de clima — em vez de repetir a resposta
+    inteira seis vezes.
+
+    Os campos que Berlim ja trazia (`sunrise`, `sunset`) sao preservados: o
+    painel do sol continua montando mesmo na semana de Wellington.
+    """
+    return {
+        **FORECAST_BERLIM,
+        "daily": {
+            **FORECAST_BERLIM["daily"],
+            **daily,
+        },
+    }

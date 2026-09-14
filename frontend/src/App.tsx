@@ -1,11 +1,11 @@
 /**
- * O painel: busca de cidade, card do dia, tendencia horaria, previsao da semana
- * e horarios do sol.
+ * O painel: busca de cidade, card do dia, tendencia horaria, previsao da
+ * semana, horarios do sol, precipitacao e condicoes previstas.
  *
  * O grid segue as tres faixas da spec, com proporcoes proprias em vez de doze
- * colunas — um grid de 12 nao reproduz as larguras do design. Os paineis que
- * faltam (precipitacao, condicoes previstas, cidades proximas) ocupam as vagas
- * restantes das faixas 2 e 3 nos tickets seguintes.
+ * colunas — um grid de 12 nao reproduz as larguras do design. Falta o painel
+ * de cidades proximas, que ocupa a terceira coluna da faixa 2 no ticket
+ * seguinte.
  */
 
 import { useEffect, useState } from "react";
@@ -14,6 +14,8 @@ import type { Cidade, WeatherResponse } from "./api/types";
 import { BuscaCidade } from "./components/BuscaCidade";
 import { CardDoDia } from "./components/CardDoDia";
 import { CardSol } from "./components/CardSol";
+import { CondicoesPrevistas } from "./components/CondicoesPrevistas";
+import { Precipitacao } from "./components/Precipitacao";
 import { PrevisaoSemana } from "./components/PrevisaoSemana";
 import { TendenciaTemperatura } from "./components/TendenciaTemperatura";
 
@@ -107,6 +109,16 @@ export default function App() {
                   units={estado.painel.units}
                 />
                 <CardSol sun={estado.painel.sun} />
+              </div>
+
+              {/* Faixa 3: precipitacao e condicoes previstas. Ambas leem os
+                  mesmos sete dias que a faixa 2 exibe. */}
+              <div className="grid grid-cols-[1.2fr_1fr] gap-4">
+                <Precipitacao
+                  daily={estado.painel.daily}
+                  units={estado.painel.units}
+                />
+                <CondicoesPrevistas alerts={estado.painel.alerts} />
               </div>
             </div>
           )}

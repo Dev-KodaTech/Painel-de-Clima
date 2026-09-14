@@ -12,6 +12,11 @@
   --color-brand-soft: #e8eefe; /* fundo do icone ativo da sidebar */
   --color-line: #eef0f6; /* grades e divisorias de tabela */
 
+  /* A altura util dos paineis da faixa 3. Os dois — precipitacao e condicoes
+     previstas — precisam concordar, ou a faixa desalinha; e o de condicoes
+     pode ficar vazio, e um painel vazio sem altura propria encolheria. */
+  --spacing-faixa3: 168px;
+
   --radius-card: 20px;
   --radius-inner: 14px;
   --shadow-card: 0 8px 24px -12px rgb(31 36 48 / 0.18);

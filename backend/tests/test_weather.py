@@ -43,6 +43,7 @@ def test_painel_traz_os_blocos_desta_fatia():
         "hourly",
         "daily",
         "sun",
+        "alerts",
         "units",
         "attribution",
     }
