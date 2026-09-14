@@ -99,6 +99,53 @@ async def buscar_previsao(
     )
 
 
+#: As variaveis das vizinhas: **apenas** `current`, e dentro dele so o que a
+#: tabela exibe. A API aplica as variaveis pedidas a *todas* as coordenadas da
+#: requisicao, entao nao ha como pedir "tudo para a principal, so temperatura
+#: para as vizinhas" numa chamada so.
+#:
+#: Dai serem **duas chamadas**, e nao uma. Medido: uma chamada com seis
+#: coordenadas e todas as variaveis pesa 32.791 bytes; a principal completa
+#: mais as vizenhas so com `current` pesa 7.417 — **77% menos banda**, ao custo
+#: de 2 requisicoes de uma cota diaria de 10.000.
+VARIAVEIS_VIZINHAS = ("temperature_2m", "weather_code", "is_day")
+
+
+async def buscar_atual_de_varias(
+    client: httpx.AsyncClient, coordenadas: list[tuple[float, float]]
+) -> list[dict]:
+    """O tempo agora de varias coordenadas, numa unica requisicao.
+
+    A Open-Meteo aceita **multiplas coordenadas** (`latitude=a,b,c`) e devolve
+    um array **na ordem de entrada** — e a ordem que casa cada resposta com a
+    sua cidade, porque a resposta nao repete o nome de nada.
+
+    **Armadilha de formato**: com uma unica coordenada a API devolve um objeto,
+    nao uma lista de um. Aqui o retorno e sempre lista, para que o chamador nao
+    tenha de distinguir os dois casos.
+
+    Lista vazia nao vira requisicao: uma chamada sem coordenada seria `400`.
+    """
+    if not coordenadas:
+        return []
+
+    payload = await _get(
+        client,
+        FORECAST_URL,
+        params={
+            "latitude": ",".join(str(lat) for lat, _ in coordenadas),
+            "longitude": ",".join(str(lon) for _, lon in coordenadas),
+            "current": ",".join(VARIAVEIS_VIZINHAS),
+            "timezone": "auto",
+            # Sem previsao: a tabela mostra so a temperatura de agora. O default
+            # de sete dias viria como bloco diario que ninguem le.
+            "forecast_days": 1,
+        },
+    )
+
+    return payload if isinstance(payload, list) else [payload]
+
+
 async def _get(client: httpx.AsyncClient, url: str, params: dict) -> dict:
     """Faz a requisicao e converte qualquer falha em `OpenMeteoIndisponivel`."""
     try:

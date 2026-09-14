@@ -2,6 +2,7 @@
 
 import httpx
 
+from app import dataset
 from app.models import (
     ATRIBUICAO,
     UNIDADES_PADRAO,
@@ -11,11 +12,13 @@ from app.models import (
     DailyPoint,
     HourlyPoint,
     Location,
+    Nearby,
     Sun,
     Units,
     WeatherResponse,
 )
-from app.services import alertas, open_meteo
+from app.services import alertas, open_meteo, vizinhas
+from app.services.geonames import CidadeLocal
 from app.services.wmo import traduzir
 
 
@@ -55,7 +58,20 @@ async def montar_painel(
     previsao = await open_meteo.buscar_previsao(
         client, cidade.latitude, cidade.longitude
     )
-    return _montar(previsao, cidade)
+
+    # **Duas chamadas, nao uma**: as variaveis pedidas valem para todas as
+    # coordenadas de uma requisicao, entao pedir o painel inteiro para as seis
+    # cidades custaria 32.791 bytes contra os 7.417 destas duas.
+    #
+    # A selecao e local e roda antes: e ela que diz *quais* coordenadas pedir.
+    selecionadas = vizinhas.selecionar(
+        dataset.cidades(), cidade.latitude, cidade.longitude
+    )
+    atuais = await open_meteo.buscar_atual_de_varias(
+        client, [(vizinha.latitude, vizinha.longitude) for vizinha, _ in selecionadas]
+    )
+
+    return _montar(previsao, cidade, _vizinhas(selecionadas, atuais))
 
 
 def _horas_do_dia(hourly: dict, dia: str) -> list[HourlyPoint]:
@@ -98,7 +114,41 @@ def _dias(daily: dict) -> list[DailyPoint]:
     return dias
 
 
-def _montar(previsao: dict, cidade: CidadeEscolhida) -> WeatherResponse:
+def _vizinhas(
+    selecionadas: list[tuple[CidadeLocal, float]], atuais: list[dict]
+) -> list[Nearby]:
+    """Casa cada cidade selecionada com a sua leitura atual.
+
+    A correspondencia e **posicional**: a API multi-coordenada devolve um array
+    na ordem de entrada e nao repete o nome de nada, entao a i-esima resposta e
+    da i-esima coordenada pedida. `zip` para no menor dos dois — uma resposta
+    mais curta que o pedido rende menos linhas, nunca um par trocado, que
+    exibiria a temperatura de uma cidade sob o nome de outra.
+    """
+    nearby = []
+    for (cidade, distancia), atual in zip(selecionadas, atuais):
+        current = atual["current"]
+        description, icon = traduzir(current["weather_code"], bool(current["is_day"]))
+        nearby.append(
+            Nearby(
+                name=cidade.name,
+                country_code=cidade.country_code,
+                # Arredondada ao km: a tabela exibe inteiros, e a precisao de
+                # ponto flutuante nao significa nada numa distancia estimada
+                # sobre a esfera.
+                distance_km=round(distancia),
+                temperature=current["temperature_2m"],
+                weather_code=current["weather_code"],
+                description=description,
+                icon=icon,
+            )
+        )
+    return nearby
+
+
+def _montar(
+    previsao: dict, cidade: CidadeEscolhida, nearby: list[Nearby]
+) -> WeatherResponse:
     current = previsao["current"]
     daily = previsao["daily"]
 
@@ -147,6 +197,7 @@ def _montar(previsao: dict, cidade: CidadeEscolhida) -> WeatherResponse:
         # Derivadas da mesma semana que o painel exibe: nao ha fonte oficial de
         # alerta aqui, e a interface diz isso em cada card.
         alerts=alertas.derivar(daily),
+        nearby=nearby,
         units=Units(**UNIDADES_PADRAO),
         attribution=ATRIBUICAO,
     )

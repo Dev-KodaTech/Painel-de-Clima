@@ -64,3 +64,45 @@ async def test_forecast_ainda_traz_os_campos_usados():
 
     # O bloco horario comeca a meia-noite do dia corrente, nunca "agora".
     assert previsao["hourly"]["time"][0].endswith("T00:00")
+
+
+@pytest.mark.contract
+@pytest.mark.anyio
+async def test_multi_coordenada_ainda_devolve_array_na_ordem_de_entrada():
+    """A chamada das vizinhas: um array, na ordem pedida, com fuso por cidade.
+
+    Duas propriedades sao a base do bloco `nearby` e nenhuma esta documentada
+    como garantia: que varias coordenadas devolvem **lista** (uma so devolve
+    objeto) e que a ordem da resposta e a da entrada. A correspondencia entre
+    cidade e temperatura e posicional — se a ordem deixar de valer, o painel
+    passa a exibir a temperatura de uma cidade sob o nome de outra, e nada no
+    dado denuncia a troca.
+    """
+    berlim = (52.52, 13.42)
+    honolulu = (21.31, -157.86)
+
+    async with httpx.AsyncClient() as client:
+        atuais = await open_meteo.buscar_atual_de_varias(client, [berlim, honolulu])
+
+    assert isinstance(atuais, list)
+    assert len(atuais) == 2
+
+    for atual, (latitude, _) in zip(atuais, [berlim, honolulu]):
+        # A API arredonda para a celula da grade, mas nao troca hemisferio.
+        assert abs(atual["latitude"] - latitude) < 1
+        for campo in open_meteo.VARIAVEIS_VIZINHAS:
+            assert campo in atual["current"]
+
+    # `timezone=auto` resolve por coordenada, nao uma vez para a requisicao.
+    assert atuais[0]["timezone"] != atuais[1]["timezone"]
+
+
+@pytest.mark.contract
+@pytest.mark.anyio
+async def test_uma_coordenada_ainda_devolve_objeto_e_o_cliente_normaliza():
+    """A assimetria que o cliente esconde: uma coordenada nao vira lista de um."""
+    async with httpx.AsyncClient() as client:
+        atuais = await open_meteo.buscar_atual_de_varias(client, [(52.52, 13.42)])
+
+    assert isinstance(atuais, list)
+    assert len(atuais) == 1

@@ -1,8 +1,6 @@
 """Modelos Pydantic que espelham o payload 1:1.
 
-Servem de contrato e geram o schema OpenAPI. Esta fatia cobre `location`,
-`current`, `hourly`, `daily`, `sun`, `alerts`, `units` e `attribution`; o
-bloco `nearby` entra no ticket seguinte.
+Servem de contrato e geram o schema OpenAPI.
 """
 
 from typing import Literal
@@ -157,6 +155,25 @@ class Alerta(BaseModel):
     )
 
 
+class Nearby(BaseModel):
+    """Uma cidade vizinha, selecionada por aneis sobre o dataset local.
+
+    `distance_km` e **obrigatorio**, nao enfeite: para uma cidade isolada,
+    "Auckland — 4.094 km" e honesto, e o mesmo item sem a distancia seria
+    enganoso — sugeriria uma vizinhanca que nao existe.
+    """
+
+    name: str
+    country_code: str
+    distance_km: float = Field(
+        description="Distancia em linha reta ate a cidade consultada, em km."
+    )
+    temperature: float
+    weather_code: int
+    description: str
+    icon: str
+
+
 class Units(BaseModel):
     temperature: str
     precipitation: str
@@ -165,10 +182,7 @@ class Units(BaseModel):
 
 
 class WeatherResponse(BaseModel):
-    """O painel. Um objeto por painel da interface.
-
-    Nesta fatia falta `nearby`, que entra com o painel de cidades proximas.
-    """
+    """O painel. Um objeto por painel da interface."""
 
     location: Location
     current: Current
@@ -180,6 +194,13 @@ class WeatherResponse(BaseModel):
             "Condicoes severas previstas, no maximo duas. Lista vazia e o "
             "caminho normal, nao erro: duas das seis cidades da amostra caem "
             "nele, e o painel mostra o estado vazio em vez de sumir."
+        )
+    )
+    nearby: list[Nearby] = Field(
+        description=(
+            "De quatro a cinco cidades vizinhas, da mais perto para a mais "
+            "longe. Numa cidade isolada elas sao distantes, e a distancia "
+            "obrigatoria de cada item e o que torna a comparacao honesta."
         )
     )
     units: Units

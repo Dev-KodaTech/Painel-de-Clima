@@ -113,3 +113,17 @@ export function precipitacao(valor: number, unidade: string): string {
   if (valor === 0) return `0 ${unidade}`;
   return `${valor.toFixed(1).replace(".", ",")} ${unidade}`;
 }
+
+/**
+ * "27 km" / "4.094 km": a distancia de uma cidade vizinha.
+ *
+ * O separador de milhar importa aqui mais que em qualquer outro numero do
+ * painel: as distancias de uma cidade isolada tem quatro digitos, e "4094 km"
+ * se le como um numero qualquer enquanto "4.094 km" se le como a distancia
+ * grande que e — que e justamente a informacao que torna a comparacao honesta.
+ *
+ * A unidade vem do payload, como toda unidade exibida.
+ */
+export function distancia(valor: number, unidade: string): string {
+  return `${Math.round(valor).toLocaleString("pt-BR")} ${unidade}`;
+}

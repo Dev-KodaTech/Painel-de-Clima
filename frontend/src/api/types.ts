@@ -104,6 +104,23 @@ export type Alerta = {
   also_days: number;
 };
 
+/**
+ * Uma cidade vizinha, selecionada por aneis sobre o dataset local do backend.
+ *
+ * `distance_km` nao e opcional: numa cidade isolada as vizinhas sao distantes,
+ * e "Auckland — 4.094 km" e honesto onde "Auckland" sozinha sugeriria uma
+ * vizinhanca que nao existe.
+ */
+export type Nearby = {
+  name: string;
+  country_code: string;
+  distance_km: number;
+  temperature: number;
+  weather_code: number;
+  description: string;
+  icon: string;
+};
+
 export type Units = {
   temperature: string;
   precipitation: string;
@@ -121,6 +138,8 @@ export type WeatherResponse = {
   sun: Sun;
   /** No maximo duas. Lista vazia e o caminho normal, nao erro. */
   alerts: Alerta[];
+  /** De quatro a cinco, da mais perto para a mais longe. */
+  nearby: Nearby[];
   units: Units;
   attribution: string;
 };

@@ -32,7 +32,8 @@ def _mock_forecast(payload=None):
 
 
 @respx.mock
-def test_painel_traz_os_blocos_desta_fatia():
+def test_painel_traz_um_bloco_por_painel_da_interface():
+    """As nove chaves do contrato: uma por painel, mais unidades e atribuicao."""
     _mock_forecast()
 
     corpo = client.get("/api/weather", params=BERLIM).json()
@@ -44,6 +45,7 @@ def test_painel_traz_os_blocos_desta_fatia():
         "daily",
         "sun",
         "alerts",
+        "nearby",
         "units",
         "attribution",
     }
@@ -151,16 +153,36 @@ def test_coordenada_invalida_e_rejeitada():
     assert client.get("/api/weather", params={**BERLIM, "latitude": 91}).status_code == 422
 
 
-@pytest.mark.parametrize("ausente", ["name", "country", "country_code"])
+@pytest.mark.parametrize("ausente", ["name", "country_code"])
 def test_identidade_incompleta_e_rejeitada(ausente):
     """`location` existe para o usuario confirmar a cidade que pediu.
 
-    Com pais em branco ela nao confirmaria nada, entao o endpoint recusa em
-    vez de devolver um painel rotulado pela metade.
+    Sem nome ou sem sigla de pais ela nao confirmaria nada, entao o endpoint
+    recusa em vez de devolver um painel rotulado pela metade.
     """
     params = {campo: valor for campo, valor in BERLIM.items() if campo != ausente}
 
     assert client.get("/api/weather", params=params).status_code == 422
+
+
+@respx.mock
+def test_territorio_sem_nome_de_pais_ainda_tem_painel():
+    """**Armadilha da API**: `country` some para territorios e regioes especiais.
+
+    Papeete (PF), Noumea (NC), Hong Kong (HK), Macau (MO) e Saint-Denis (RE)
+    voltam do geocoding sem a chave — como `results` some quando nada casa.
+    Exigi-la aqui deixava justamente essas cidades sem painel, com `422`, e a
+    cidade isolada e o caso que a tabela de vizinhas existe para servir.
+    """
+    _mock_forecast()
+    papeete = {**BERLIM, "name": "Papeete", "country": "", "country_code": "PF"}
+
+    response = client.get("/api/weather", params=papeete)
+
+    assert response.status_code == 200
+    # A sigla, sempre presente, e quem confirma a cidade; a interface omite o
+    # nome do pais que nao veio em vez de exibir vazio.
+    assert response.json()["location"]["country_code"] == "PF"
 
 
 @respx.mock

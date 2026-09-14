@@ -278,3 +278,36 @@ def forecast_com_daily(daily: dict) -> dict:
             **daily,
         },
     }
+
+
+# ---------------------------------------------------------------------------
+# Cidades vizinhas: a resposta multi-coordenada.
+
+
+def atual_de_varias(temperaturas: list[float]) -> list[dict]:
+    """A resposta da chamada multi-coordenada, uma entrada por vizinha.
+
+    A API devolve um **array na ordem de entrada** e nao repete o nome de
+    nada: e a posicao que casa cada leitura com a sua cidade. As temperaturas
+    sao distintas de proposito, para que uma correspondencia trocada apareca
+    como valor errado na linha errada.
+
+    Traz so `current`, que e o que a segunda chamada pede — nenhum bloco
+    diario ou horario, que custariam banda sem alimentar a tabela.
+    """
+    return [
+        {
+            "latitude": 52.4,
+            "longitude": 13.0,
+            "timezone": "Europe/Berlin",
+            "utc_offset_seconds": 7200,
+            "current": {
+                "time": "2026-09-14T03:00",
+                "interval": 900,
+                "temperature_2m": temperatura,
+                "weather_code": 3,
+                "is_day": 0,
+            },
+        }
+        for temperatura in temperaturas
+    ]

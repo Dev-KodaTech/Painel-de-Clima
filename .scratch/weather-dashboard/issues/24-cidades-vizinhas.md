@@ -4,21 +4,32 @@
 
 **Blocked by:** 21
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 Pode correr **em paralelo** com 22 e 23: depende só da coordenada resolvida pelo 21.
 
 Referência: [spec](../spec.md), seção "Seleção de cidades vizinhas".
 
-- [ ] Dump `cities15000` do GeoNames versionado no repositório (3,2 MB comprimido)
-- [ ] Carregado no **startup** via `lifespan` (~85 ms, ~8,8 MB em memória); busca linear, sem índice espacial
-- [ ] Colunas lidas pelos índices corretos: `[7]` é `feature_code`, **não** `[6]` (que é `feature_class` e devolve zero cidades)
-- [ ] Seleção por anéis: filtrar `PPL*`, excluir <15 km, anéis de 100/250/600/1500/5000/25000 km, maior população em cada, separação mínima de ~25 km
-- [ ] Segunda chamada à API externa, multi-coordenada, pedindo **apenas** `current` para as vizinhas
-- [ ] Bloco `nearby` no payload com `distance_km` **obrigatório** por item
-- [ ] Tabela renderizada com nome, distância, ícone e temperatura
-- [ ] Teste na costura de seleção: Berlim devolve vizinhas reais, não subúrbios do próprio município
-- [ ] Teste: Basileia mistura três países sem tratamento especial
-- [ ] Teste: Honolulu **não** devolve megalópole chinesa (regressão do raio fixo)
-- [ ] Teste: Reykjavik e Papeete degradam para anéis largos em vez de lista vazia
-- [ ] Teste: dataset carregado tem mais de 30.000 cidades após o filtro (regressão do índice errado)
+- [x] Dump `cities15000` do GeoNames versionado no repositório (3,2 MB comprimido)
+- [x] Carregado no **startup** via `lifespan` (~85 ms, ~8,8 MB em memória); busca linear, sem índice espacial
+- [x] Colunas lidas pelos índices corretos: `[7]` é `feature_code`, **não** `[6]` (que é `feature_class` e devolve zero cidades)
+- [x] Seleção por anéis: filtrar `PPL*`, excluir <15 km, anéis de 100/250/600/1500/5000/25000 km, maior população em cada, separação mínima de ~25 km
+- [x] Segunda chamada à API externa, multi-coordenada, pedindo **apenas** `current` para as vizinhas
+- [x] Bloco `nearby` no payload com `distance_km` **obrigatório** por item
+- [x] Tabela renderizada com nome, distância, ícone e temperatura
+- [x] Teste na costura de seleção: Berlim devolve vizinhas reais, não subúrbios do próprio município
+- [x] Teste: Basileia mistura três países sem tratamento especial
+- [x] Teste: Honolulu **não** devolve megalópole chinesa (regressão do raio fixo)
+- [x] Teste: Reykjavik e Papeete degradam para anéis largos em vez de lista vazia
+- [x] Teste: dataset carregado tem mais de 30.000 cidades após o filtro (regressão do índice errado)
+
+## Comments
+
+Implementado. Notas do que a implementacao verificou ou mudou:
+
+- **Indice `[7]` confirmado no arquivo real**: `feature_class` (`[6]`) vale `'P'` nas 34.136 linhas, entao filtra-lo por `PPL` devolve zero cidades sem erro algum. `feature_code` (`[7]`) devolve 34.134. O teste de carga (>30.000) trava a regressao.
+- **O dump vai comprimido** (3,2 MB) e nao expandido (8,4 MB): descomprimir custa 29 ms dos 214 ms de carga, e poupa 5 MB no repositorio.
+- **Quarta armadilha de formato da API externa, nao documentada na spec**: a chave `country` *some* da resposta do geocoding para territorios e regioes especiais — Papeete (PF), Noumea (NC), Hong Kong (HK), Macau (MO), Saint-Denis (RE). O `min_length=1` herdado do ticket 21 devolvia `422` e deixava essas cidades **sem painel algum** — inclusive Papeete, que e o caso de cidade isolada que este ticket existe para servir. `country` passou a aceitar vazio; quem confirma a cidade e `country_code`, sempre presente.
+- **A resposta multi-coordenada e assimetrica**: varias coordenadas devolvem lista, uma so devolve objeto. O cliente normaliza para lista sempre; ha teste de contrato para as duas formas.
+- **A sigla do pais entrou na tabela** (`28 km · FR`): sem ela, as vizinhas de Basileia se leem como suicas, e a historia 27 pede justamente que a diferenca de pais apareca.
+- Medido: carga 214 ms / ~13 MB, selecao ~30 ms, payload 3,4 KB.

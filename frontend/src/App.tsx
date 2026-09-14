@@ -1,11 +1,10 @@
 /**
  * O painel: busca de cidade, card do dia, tendencia horaria, previsao da
- * semana, horarios do sol, precipitacao e condicoes previstas.
+ * semana, horarios do sol, cidades proximas, precipitacao e condicoes
+ * previstas.
  *
  * O grid segue as tres faixas da spec, com proporcoes proprias em vez de doze
- * colunas — um grid de 12 nao reproduz as larguras do design. Falta o painel
- * de cidades proximas, que ocupa a terceira coluna da faixa 2 no ticket
- * seguinte.
+ * colunas — um grid de 12 nao reproduz as larguras do design.
  */
 
 import { useEffect, useState } from "react";
@@ -14,6 +13,7 @@ import type { Cidade, WeatherResponse } from "./api/types";
 import { BuscaCidade } from "./components/BuscaCidade";
 import { CardDoDia } from "./components/CardDoDia";
 import { CardSol } from "./components/CardSol";
+import { CidadesProximas } from "./components/CidadesProximas";
 import { CondicoesPrevistas } from "./components/CondicoesPrevistas";
 import { Precipitacao } from "./components/Precipitacao";
 import { PrevisaoSemana } from "./components/PrevisaoSemana";
@@ -101,14 +101,18 @@ export default function App() {
                 />
               </div>
 
-              {/* Faixa 2: previsao da semana e horarios do sol. A terceira
-                  coluna, cidades proximas, entra no ticket 24. */}
-              <div className="grid grid-cols-[1.35fr_.75fr] gap-4">
+              {/* Faixa 2: previsao da semana, horarios do sol e cidades
+                  proximas. */}
+              <div className="grid grid-cols-[1.35fr_.75fr_1.1fr] gap-4">
                 <PrevisaoSemana
                   daily={estado.painel.daily}
                   units={estado.painel.units}
                 />
                 <CardSol sun={estado.painel.sun} />
+                <CidadesProximas
+                  nearby={estado.painel.nearby}
+                  units={estado.painel.units}
+                />
               </div>
 
               {/* Faixa 3: precipitacao e condicoes previstas. Ambas leem os
