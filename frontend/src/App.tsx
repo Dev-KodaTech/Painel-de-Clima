@@ -26,13 +26,7 @@ export default function App() {
 
   return (
     <main className="grid min-h-screen place-items-center p-4">
-      <section
-        className="w-full max-w-md bg-card p-[18px]"
-        style={{
-          borderRadius: "var(--radius-card)",
-          boxShadow: "var(--shadow-card)",
-        }}
-      >
+      <section className="w-full max-w-md rounded-card bg-card p-[18px] shadow-card">
         <h1 className="text-sm font-semibold">Painel de Clima</h1>
         <p className="mt-1 text-[13px] text-ink-2">
           Esqueleto do ambiente de desenvolvimento.

@@ -4,15 +4,15 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 Referência: [spec](../spec.md), seções "Arquitetura geral" e "Interface".
 
-- [ ] `git init` feito, com `.gitignore` cobrindo `__pycache__/`, `.venv/`, `node_modules/`, `dist/`, `.env`
-- [ ] `backend/` sobe com uvicorn e responde num endpoint de saúde
-- [ ] `frontend/` sobe com Vite e renderiza uma página
-- [ ] O frontend lê o endpoint de saúde **pelo proxy do Vite**, sem CORS em dev
-- [ ] Middleware de CORS configurado no backend, lendo origens de variável de ambiente, vazio por padrão
-- [ ] Bloco `@theme` do Tailwind v4 no CSS com as 9 cores, 2 raios, sombra e fonte Poppins carregada
-- [ ] Não existe `tailwind.config.js` nem `postcss.config.js` (v4 é CSS-first)
-- [ ] README ou equivalente com os dois comandos para subir o ambiente
+- [x] `git init` feito, com `.gitignore` cobrindo `__pycache__/`, `.venv/`, `node_modules/`, `dist/`, `.env`
+- [x] `backend/` sobe com uvicorn e responde num endpoint de saúde
+- [x] `frontend/` sobe com Vite e renderiza uma página
+- [x] O frontend lê o endpoint de saúde **pelo proxy do Vite**, sem CORS em dev
+- [x] Middleware de CORS configurado no backend, lendo origens de variável de ambiente, vazio por padrão
+- [x] Bloco `@theme` do Tailwind v4 no CSS com as 9 cores, 2 raios, sombra e fonte Poppins carregada
+- [x] Não existe `tailwind.config.js` nem `postcss.config.js` (v4 é CSS-first)
+- [x] README ou equivalente com os dois comandos para subir o ambiente
