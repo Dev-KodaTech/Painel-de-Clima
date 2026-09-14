@@ -7,6 +7,8 @@ precisa saber que `results` pode sumir nem que `is_day` vem como inteiro.
 
 import httpx
 
+from app.services.cache import Cache, chave_de_coordenada
+
 GEOCODING_URL = "https://geocoding-api.open-meteo.com/v1/search"
 FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
 
@@ -16,6 +18,15 @@ FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
 CANDIDATAS_PADRAO = 10
 
 TIMEOUT = httpx.Timeout(10.0)
+
+#: O cache das consultas de previsao, compartilhado pelo processo.
+#:
+#: Cobre **apenas** as chamadas por coordenada. A busca por texto fica de fora
+#: de proposito: dispara a cada tecla digitada, e a chave seria o texto cru —
+#: "Ber", "Berl", "Berli" sao tres entradas para a mesma cidade, e o conjunto
+#: de chaves possiveis nao tem limite. E a chamada barata das duas, que nao
+#: arrasta previsao junto.
+cache = Cache()
 
 
 class OpenMeteoIndisponivel(Exception):
@@ -83,19 +94,26 @@ async def buscar_previsao(
 
     `timezone=auto` faz a API resolver o fuso pela coordenada e devolver os
     timestamps ja em horario local da cidade.
+
+    **Cacheada por coordenada arredondada**: e a chamada cara — 168 horas e
+    sete dias de variaveis —, e a fonte so atualiza a cada ~15 minutos, entao
+    repeti-la dentro do TTL devolveria os mesmos numeros gastando cota.
     """
-    return await _get(
-        client,
-        FORECAST_URL,
-        params={
-            "latitude": latitude,
-            "longitude": longitude,
-            "current": "temperature_2m,apparent_temperature,weather_code,is_day",
-            "hourly": "temperature_2m",
-            "daily": ",".join(VARIAVEIS_DIARIAS),
-            "timezone": "auto",
-            "forecast_days": DIAS_DE_PREVISAO,
-        },
+    return await cache.obter_async(
+        chave_de_coordenada("previsao", latitude, longitude),
+        lambda: _get(
+            client,
+            FORECAST_URL,
+            params={
+                "latitude": latitude,
+                "longitude": longitude,
+                "current": "temperature_2m,apparent_temperature,weather_code,is_day",
+                "hourly": "temperature_2m",
+                "daily": ",".join(VARIAVEIS_DIARIAS),
+                "timezone": "auto",
+                "forecast_days": DIAS_DE_PREVISAO,
+            },
+        ),
     )
 
 
@@ -125,25 +143,36 @@ async def buscar_atual_de_varias(
     tenha de distinguir os dois casos.
 
     Lista vazia nao vira requisicao: uma chamada sem coordenada seria `400`.
+
+    **Cacheada pelo conjunto inteiro**, nao por cidade: a requisicao e uma so
+    para todas as coordenadas, e a resposta so faz sentido inteira, casada
+    posicionalmente com o pedido. Como as vizinhas de uma cidade sao sempre as
+    mesmas — a selecao e deterministica sobre um dataset fixo —, a chave do
+    conjunto repete tal qual na segunda consulta a mesma cidade.
     """
     if not coordenadas:
         return []
 
-    payload = await _get(
-        client,
-        FORECAST_URL,
-        params={
-            "latitude": ",".join(str(lat) for lat, _ in coordenadas),
-            "longitude": ",".join(str(lon) for _, lon in coordenadas),
-            "current": ",".join(VARIAVEIS_VIZINHAS),
-            "timezone": "auto",
-            # Sem previsao: a tabela mostra so a temperatura de agora. O default
-            # de sete dias viria como bloco diario que ninguem le.
-            "forecast_days": 1,
-        },
-    )
+    async def buscar() -> list[dict]:
+        payload = await _get(
+            client,
+            FORECAST_URL,
+            params={
+                "latitude": ",".join(str(lat) for lat, _ in coordenadas),
+                "longitude": ",".join(str(lon) for _, lon in coordenadas),
+                "current": ",".join(VARIAVEIS_VIZINHAS),
+                "timezone": "auto",
+                # Sem previsao: a tabela mostra so a temperatura de agora. O
+                # default de sete dias viria como bloco diario que ninguem le.
+                "forecast_days": 1,
+            },
+        )
+        return payload if isinstance(payload, list) else [payload]
 
-    return payload if isinstance(payload, list) else [payload]
+    chave = chave_de_coordenada(
+        "atual", *[valor for par in coordenadas for valor in par]
+    )
+    return await cache.obter_async(chave, buscar)
 
 
 async def _get(client: httpx.AsyncClient, url: str, params: dict) -> dict:
