@@ -7,12 +7,42 @@
  */
 
 import { useEffect, useId, useRef, useState } from "react";
-import { buscarCidades, mensagemDeErro } from "../api/client";
+import {
+  buscarCidadePorCoordenada,
+  buscarCidades,
+  mensagemDeErro,
+} from "../api/client";
 import type { Cidade } from "../api/types";
 import { populacao, procedencia } from "../formato";
+import { pedirLocalizacao, temGeolocalizacao } from "../localizacao";
 
 /** Espera antes de consultar, para nao disparar a cada tecla digitada. */
 const ESPERA_MS = 300;
+
+/**
+ * O alvo do botao de localizacao, desenhado inline.
+ *
+ * Os Meteocons do payload sao icones de tempo; este e de interface, e nao sai
+ * de la. `aria-hidden` porque quem nomeia o botao e o seu `aria-label` — o
+ * icone repetiria o mesmo texto para o leitor de tela.
+ */
+function Alvo({ animado }: { animado: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      className={`size-[18px] ${animado ? "animate-pulse" : ""}`}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+    >
+      <circle cx="12" cy="12" r="7" />
+      <circle cx="12" cy="12" r="2.4" fill="currentColor" stroke="none" />
+      <path d="M12 1.8v3M12 19.2v3M22.2 12h-3M4.8 12h-3" />
+    </svg>
+  );
+}
 
 type Props = {
   onEscolher: (cidade: Cidade) => void;
@@ -27,11 +57,31 @@ type Resultado =
   | { tipo: "candidatas"; cidades: Cidade[] }
   | { tipo: "erro"; mensagem: string };
 
+/**
+ * O botao de localizacao, que so tem tres estados visiveis.
+ *
+ * Nao ha estado para "negada": negar e escolha do usuario, e a interface volta
+ * ao repouso sem mensagem alguma — insistir seria importunar quem ja disse
+ * nao. Nem para "nenhuma cidade perto": o campo fica vazio, que e o estado
+ * inicial normal.
+ */
+type Localizando =
+  | { tipo: "repouso" }
+  | { tipo: "buscando" }
+  | { tipo: "aviso"; mensagem: string };
+
 export function BuscaCidade({ onEscolher }: Props) {
   const [termo, setTermo] = useState("");
   const [resultado, setResultado] = useState<Resultado | null>(null);
+  const [localizando, setLocalizando] = useState<Localizando>({
+    tipo: "repouso",
+  });
   const containerRef = useRef<HTMLDivElement>(null);
   const listaId = useId();
+
+  // Lido uma vez: a presenca da API nao muda durante a sessao, e chama-la a
+  // cada render nao diria nada novo.
+  const [mostraBotao] = useState(temGeolocalizacao);
 
   useEffect(() => {
     const q = termo.trim();
@@ -62,6 +112,11 @@ export function BuscaCidade({ onEscolher }: Props) {
   function digitar(texto: string) {
     setTermo(texto);
     setResultado(texto.trim().length < 2 ? null : { tipo: "buscando" });
+    // Digitar dispensa o aviso de localizacao: ele existe para dizer "use a
+    // busca", e quem esta digitando ja o fez. Sem isto o aviso ficaria para
+    // sempre, sobreposto ao dropdown de candidatas — os dois ocupam o mesmo
+    // lugar sob o campo.
+    setLocalizando({ tipo: "repouso" });
   }
 
   // Clicar fora fecha o dropdown sem apagar o que foi digitado.
@@ -81,24 +136,94 @@ export function BuscaCidade({ onEscolher }: Props) {
     setResultado(null);
   }
 
+  /**
+   * Resolve a localizacao do navegador em cidade e carrega o painel direto.
+   *
+   * Sem pedir confirmacao: o usuario ja pediu ao clicar, e o nome fica visivel
+   * no campo de busca para correcao. Uma segunda confirmacao seria friccao sem
+   * proposito.
+   *
+   * A permissao e pedida **aqui**, no clique, e nunca no carregamento.
+   */
+  async function usarMinhaLocalizacao() {
+    setLocalizando({ tipo: "buscando" });
+    setResultado(null);
+
+    const localizacao = await pedirLocalizacao();
+
+    // Negar e escolha do usuario: volta ao repouso, sem mensagem.
+    if (localizacao.tipo === "negada") {
+      setLocalizando({ tipo: "repouso" });
+      return;
+    }
+
+    if (localizacao.tipo === "indisponivel") {
+      setLocalizando({
+        tipo: "aviso",
+        mensagem: "Nao foi possivel obter sua localizacao.",
+      });
+      return;
+    }
+
+    try {
+      const cidade = await buscarCidadePorCoordenada(
+        localizacao.latitude,
+        localizacao.longitude,
+      );
+      // A mais de 50 km de qualquer cidade cadastrada nada e sugerido: o
+      // estado inicial, de campo vazio, e melhor que uma cidade distante.
+      setLocalizando({ tipo: "repouso" });
+      if (cidade) escolher(cidade);
+    } catch (falha: unknown) {
+      setLocalizando({
+        tipo: "aviso",
+        mensagem: mensagemDeErro(falha, "Nao foi possivel obter sua localizacao."),
+      });
+    }
+  }
+
   const candidatas =
     resultado?.tipo === "candidatas" ? resultado.cidades : null;
 
   return (
     <div ref={containerRef} className="relative w-full max-w-md">
-      <input
-        type="search"
-        value={termo}
-        onChange={(evento) => digitar(evento.target.value)}
-        onKeyDown={(evento) => {
-          if (evento.key === "Escape") setResultado(null);
-        }}
-        placeholder="Buscar cidade…"
-        aria-label="Buscar cidade"
-        aria-controls={listaId}
-        aria-expanded={candidatas !== null && candidatas.length > 0}
-        className="w-full rounded-inner bg-card px-4 py-2.5 text-[13px] shadow-card outline-none placeholder:text-ink-3 focus:ring-2 focus:ring-brand/40"
-      />
+      <div className="flex items-center gap-2">
+        <input
+          type="search"
+          value={termo}
+          onChange={(evento) => digitar(evento.target.value)}
+          onKeyDown={(evento) => {
+            if (evento.key === "Escape") setResultado(null);
+          }}
+          placeholder="Buscar cidade…"
+          aria-label="Buscar cidade"
+          aria-controls={listaId}
+          aria-expanded={candidatas !== null && candidatas.length > 0}
+          className="w-full rounded-inner bg-card px-4 py-2.5 text-[13px] shadow-card outline-none placeholder:text-ink-3 focus:ring-2 focus:ring-brand/40"
+        />
+
+        {/* Sem `navigator.geolocation` o botao nao e renderizado: um alvo que
+            nunca funciona e pior que a sua ausencia. */}
+        {mostraBotao && (
+          <button
+            type="button"
+            onClick={usarMinhaLocalizacao}
+            disabled={localizando.tipo === "buscando"}
+            aria-label="Usar minha localizacao"
+            title="Usar minha localizacao"
+            className="shrink-0 rounded-inner bg-card p-2.5 text-ink-2 shadow-card outline-none transition-colors hover:text-brand focus:ring-2 focus:ring-brand/40 disabled:text-ink-3"
+          >
+            <Alvo animado={localizando.tipo === "buscando"} />
+          </button>
+        )}
+      </div>
+
+      {/* Discreto de proposito: o painel continua usavel pela busca. */}
+      {localizando.tipo === "aviso" && (
+        <p role="status" className="absolute top-full mt-1.5 text-[11px] text-ink-2">
+          {localizando.mensagem}
+        </p>
+      )}
 
       {resultado?.tipo === "buscando" && (
         <p className="absolute top-full mt-1.5 text-[11px] text-ink-3">Buscando…</p>

@@ -17,7 +17,7 @@ from app.models import (
     Units,
     WeatherResponse,
 )
-from app.services import alertas, open_meteo, vizinhas
+from app.services import alertas, open_meteo, reverso, vizinhas
 from app.services.geonames import CidadeLocal
 from app.services.wmo import traduzir
 
@@ -44,6 +44,41 @@ def para_cidade(bruto: dict) -> Cidade:
 async def buscar_candidatas(client: httpx.AsyncClient, q: str) -> list[Cidade]:
     brutas = await open_meteo.buscar_cidades(client, q)
     return [para_cidade(bruta) for bruta in brutas]
+
+
+def cidade_na_coordenada(latitude: float, longitude: float) -> list[Cidade]:
+    """A cidade de uma coordenada, como candidata — **no maximo uma**.
+
+    Lista, e nao `Cidade | None`, porque a resposta e a mesma do modo texto: o
+    frontend le `results` sem saber qual modo a produziu.
+
+    Vazia quando a coordenada esta a mais de 50 km de qualquer cidade
+    cadastrada, que e caminho normal e nao erro.
+
+    `country` vem vazio e `admin1` nulo: o dump traz pais e estado apenas como
+    codigos (`DE`, `16`), nao como nomes exibiveis. Nenhum dos dois e novidade
+    para quem consome — a API externa ja omite `country` para territorios, e
+    `admin1` falta para lugares pequenos. Quem identifica a cidade e
+    `country_code`, sempre presente.
+    """
+    encontrada = reverso.mais_proxima(dataset.cidades(), latitude, longitude)
+    if encontrada is None:
+        return []
+
+    cidade, _ = encontrada
+    return [
+        Cidade(
+            id=cidade.id,
+            name=cidade.name,
+            country="",
+            country_code=cidade.country_code,
+            admin1=None,
+            latitude=cidade.latitude,
+            longitude=cidade.longitude,
+            population=cidade.population,
+            timezone=cidade.timezone,
+        )
+    ]
 
 
 async def montar_painel(

@@ -57,6 +57,26 @@ export async function buscarCidades(
   return corpo.results;
 }
 
+/**
+ * A cidade de uma coordenada, ou `null` se nao houver nenhuma perto.
+ *
+ * `null` e resposta normal, nao falha: acima de 50 km da cidade mais proxima o
+ * backend nao sugere nada, e o painel fica no estado inicial. Sugerir Alice
+ * Springs a quem esta a 341 km dela seria pior que o silencio.
+ */
+export async function buscarCidadePorCoordenada(
+  latitude: number,
+  longitude: number,
+  sinal?: AbortSignal,
+): Promise<Cidade | null> {
+  const params = new URLSearchParams({
+    lat: String(latitude),
+    lon: String(longitude),
+  });
+  const corpo = await pegar<CidadesResponse>(`/api/cities?${params}`, sinal);
+  return corpo.results[0] ?? null;
+}
+
 /** O painel de uma cidade ja escolhida. */
 export async function buscarPainel(
   cidade: Cidade,

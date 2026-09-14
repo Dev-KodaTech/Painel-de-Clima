@@ -14,18 +14,54 @@ MSG_INDISPONIVEL = (
 )
 
 
+MSG_MODO_AMBIGUO = (
+    "Informe `q` (texto) ou `lat` e `lon` (coordenada), e nao ambos nem nenhum."
+)
+
+MSG_TERMO_VAZIO = "Informe um termo de busca em `q`."
+
+
 @router.get("/cities", response_model=CidadesResponse)
-async def cities(q: str = Query(min_length=1)) -> CidadesResponse:
-    """Resolve texto em candidatas de cidade, para desambiguacao.
+async def cities(
+    # **Sem `min_length`**: a validacao do Pydantic roda *antes* do corpo, e
+    # `?q=&lat=..&lon=..` sairia como `422` por `q` vazio quando o erro real e
+    # ter mandado os dois modos — que a spec define como `400`. Vazio e tratado
+    # abaixo, junto da exclusao mutua.
+    q: str | None = Query(default=None),
+    lat: float | None = Query(default=None, ge=-90, le=90),
+    lon: float | None = Query(default=None, ge=-180, le=180),
+) -> CidadesResponse:
+    """Resolve texto **ou** coordenada em candidatas de cidade.
 
     Separado de `/weather` porque dispara a cada tecla digitada e nao pode
     arrastar a previsao junto.
+
+    Os dois modos sao a mesma operacao — resolver algo em candidata — sobre
+    dados diferentes, e por isso dividem a rota e o formato de resposta: o
+    frontend reaproveita o tipo em vez de tratar duas formas de candidata.
+
+    Sao **mutuamente exclusivos**, e ambos ou nenhum e `400`. Escolher um em
+    silencio esconderia um bug do chamador: `lat` sem `lon` e tipicamente uma
+    coordenada que se perdeu no caminho, e cair na busca por texto devolveria
+    a cidade errada sem sinal algum.
 
     Nada encontrado devolve `200` com lista vazia, nao `404`: "nao encontrada"
     e um resultado normal da busca, e o frontend o exibe como mensagem. A
     armadilha da API externa (a chave `results` some quando nada casa) e
     tratada no cliente.
     """
+    coordenada = None if lat is None or lon is None else (lat, lon)
+    # `lat` sozinho nao e modo coordenada nem modo texto: cai aqui junto com
+    # "nenhum dos dois", que e o que de fato e.
+    if (q is None) == (coordenada is None):
+        raise HTTPException(status_code=400, detail=MSG_MODO_AMBIGUO)
+
+    if q is not None and not q.strip():
+        raise HTTPException(status_code=400, detail=MSG_TERMO_VAZIO)
+
+    if coordenada is not None:
+        return CidadesResponse(results=weather.cidade_na_coordenada(*coordenada))
+
     async with httpx.AsyncClient() as client:
         try:
             candidatas = await weather.buscar_candidatas(client, q)

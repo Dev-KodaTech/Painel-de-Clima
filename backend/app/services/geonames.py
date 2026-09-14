@@ -25,12 +25,14 @@ ARQUIVO = Path(__file__).resolve().parent.parent / "data" / "cities15000.zip"
 #: `[7]` e `feature_code` (`PPL`, `PPLA`, `PPLC`); `[6]` e `feature_class`, que
 #: vale `'P'` em **todas** as 34.136 linhas. Filtrar por `[6]` devolve zero
 #: cidades **em silencio** — nenhuma excecao, apenas um painel vazio.
+_ID = 0
 _NOME = 1
 _LATITUDE = 4
 _LONGITUDE = 5
 _FEATURE_CODE = 7
 _PAIS = 8
 _POPULACAO = 14
+_FUSO = 17
 
 #: Prefixo dos codigos de lugar povoado. Exclui as duas linhas que nao o sao.
 PREFIXO_POVOADO = "PPL"
@@ -41,15 +43,21 @@ class CidadeLocal:
     """Uma cidade do dataset local.
 
     Distinta de `Cidade` (a candidata do geocoding): esta vem do arquivo, nao
-    da API externa, e serve para *medir distancia*, nao para desambiguar um
-    nome digitado. Dai nao ter `admin1` nem `timezone`, que aqui nao teriam uso.
+    da API externa. Dai nao ter `admin1` nem `country`, que o dump traz apenas
+    como codigos (`16`, `DE`) e nao como nomes exibiveis.
+
+    `id` e `timezone` existem porque a cidade resolvida a partir de uma
+    coordenada sai por `/api/cities` como candidata, no mesmo formato do modo
+    texto: sem eles o frontend teria dois tipos de candidata para tratar.
     """
 
+    id: int
     name: str
     country_code: str
     latitude: float
     longitude: float
     population: int
+    timezone: str
 
 
 def carregar(caminho: Path = ARQUIVO) -> list[CidadeLocal]:
@@ -71,6 +79,7 @@ def carregar(caminho: Path = ARQUIVO) -> list[CidadeLocal]:
 
             return [
                 CidadeLocal(
+                    id=int(campos[_ID]),
                     name=campos[_NOME],
                     country_code=campos[_PAIS],
                     latitude=float(campos[_LATITUDE]),
@@ -78,6 +87,7 @@ def carregar(caminho: Path = ARQUIVO) -> list[CidadeLocal]:
                     # Vem vazia em algumas linhas; ausencia de dado e zero
                     # habitantes, e a selecao por populacao as descarta sozinha.
                     population=int(campos[_POPULACAO] or 0),
+                    timezone=campos[_FUSO],
                 )
                 for campos in linhas
                 if campos[_FEATURE_CODE].startswith(PREFIXO_POVOADO)

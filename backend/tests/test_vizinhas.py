@@ -51,6 +51,10 @@ def test_dataset_traz_os_campos_das_colunas_certas(cidades):
     assert berlim.latitude == pytest.approx(52.52437)
     assert berlim.longitude == pytest.approx(13.41053)
     assert berlim.population > 3_000_000
+    # `id` e `timezone` existem para o modo coordenada de `/api/cities`, que
+    # devolve a candidata **do dataset** no mesmo formato do modo texto.
+    assert berlim.id == 2950159
+    assert berlim.timezone == "Europe/Berlin"
 
 
 def test_berlim_devolve_vizinhas_reais_e_nao_os_proprios_bairros(cidades):
