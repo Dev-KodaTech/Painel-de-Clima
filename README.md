@@ -54,19 +54,45 @@ cd backend && uv run pytest -m contract
 A documentação interativa fica em http://localhost:8000/docs, gerada dos
 modelos Pydantic.
 
-Dois detalhes do contrato que surpreendem:
+Três detalhes do contrato que surpreendem:
 
 - `current.high` e `current.low` vêm do bloco **diário** da Open-Meteo, que não
   os fornece em `current`.
 - Os horários viajam **sem sufixo de fuso** (`2026-09-14T03:00`) e são horário
   de parede da cidade consultada, acompanhados de `timezone` e
   `utc_offset_seconds`. Interpretá-los como UTC desloca tudo em horas.
+- `nearby[].distance_km` é **obrigatório**. Numa cidade isolada as vizinhas
+  estão a milhares de quilômetros, e "Auckland — 4.094 km" é honesto onde
+  "Auckland" sozinha sugeriria uma vizinhança que não existe.
 
 ## Configuração
 
 | Variável | Padrão | Para que serve |
 |---|---|---|
 | `CORS_ORIGINS` | vazio | Origens permitidas, separadas por vírgula. Só é necessária quando frontend e backend forem servidos de origens diferentes; em dev o proxy do Vite dispensa. |
+
+## Cidades vizinhas: o dataset local
+
+A Open-Meteo não tem busca por proximidade nem por região — procurar por
+"California" devolve apenas lugares *chamados* California, nunca Los Angeles.
+As cidades vizinhas saem de um dataset local: o dump
+[`cities15000`](https://download.geonames.org/export/dump/) do GeoNames
+(CC BY 4.0), **versionado comprimido** em
+[`backend/app/data/cities15000.zip`](backend/app/data/cities15000.zip).
+
+Versionado, e não baixado no build, porque um passo de download falha offline.
+Comprimido (3,2 MB) e não expandido (8,4 MB) porque descomprimir custa ~29 ms
+dos ~214 ms da carga e poupa 5 MB no repositório. A carga acontece no startup,
+via `lifespan`, e a busca é linear — nesta escala nenhum índice espacial se
+justifica.
+
+Para atualizar o dump (ele muda poucas vezes por ano), basta substituir o zip.
+
+Ao mexer no carregamento, atenção à coluna: `feature_code` é a **`[7]`**. A
+`[6]` é `feature_class`, que vale `'P'` nas 34.136 linhas — filtrá-la por
+`PPL` devolve **zero cidades em silêncio**, sem exceção alguma, e o painel de
+vizinhas fica permanentemente vazio. O teste de carga
+(`test_dataset_carrega_as_cidades_do_dump`) existe para travar essa regressão.
 
 ## Estrutura
 

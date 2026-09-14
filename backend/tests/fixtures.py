@@ -73,6 +73,30 @@ GEOCODING_SPRINGFIELD = {
 #: simplesmente nao existe na resposta.
 GEOCODING_VAZIO = {"generationtime_ms": 0.45}
 
+#: **A mesma armadilha, noutro campo**: para territorios e regioes especiais, a
+#: chave `country` some da candidata. Gravado do servico real; Noumea (NC),
+#: Hong Kong (HK), Macau (MO) e Saint-Denis (RE) respondem igual.
+#:
+#: Papeete e tambem a cidade isolada da spec, entao e por esta resposta que
+#: passa o caso que o painel de vizinhas existe para servir.
+GEOCODING_PAPEETE = {
+    "results": [
+        {
+            "id": 4033936,
+            "name": "Papeete",
+            "latitude": -17.5347,
+            "longitude": -149.56844,
+            "elevation": 11.0,
+            "feature_code": "PPLC",
+            "country_code": "PF",
+            "timezone": "Pacific/Tahiti",
+            "population": 26357,
+            "admin1": "Iles du Vent",
+        }
+    ],
+    "generationtime_ms": 0.6,
+}
+
 #: As 24 temperaturas do dia corrente, na resolucao real (uma por hora). O
 #: grafico do painel exibe exatamente estas.
 TEMPERATURAS_DIA_CORRENTE = [

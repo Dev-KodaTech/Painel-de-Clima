@@ -106,7 +106,7 @@ async def buscar_previsao(
 #:
 #: Dai serem **duas chamadas**, e nao uma. Medido: uma chamada com seis
 #: coordenadas e todas as variaveis pesa 32.791 bytes; a principal completa
-#: mais as vizenhas so com `current` pesa 7.417 — **77% menos banda**, ao custo
+#: mais as vizinhas so com `current` pesa 7.417 — **77% menos banda**, ao custo
 #: de 2 requisicoes de uma cota diaria de 10.000.
 VARIAVEIS_VIZINHAS = ("temperature_2m", "weather_code", "is_day")
 

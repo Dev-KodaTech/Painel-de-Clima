@@ -83,13 +83,42 @@ def test_honolulu_nao_alcanca_megalopole_distante(cidades):
     "A maior cidade num raio que se expande" mandava Honolulu para megalopoles
     chinesas a 8.000 km: num raio largo o bastante, a maior cidade nao e
     vizinha de ninguem — e so a maior do mundo naquele raio.
+
+    A asercao e sobre a **propriedade**, nao sobre nomes: proibir "Shanghai"
+    deixaria passar Los Angeles, que era o que de fato aparecia. Esgotado o
+    arquipelago, a lista termina — nao se completa com a maior cidade que
+    sobrou no anel largo.
     """
     escolhidas = selecionar(cidades, *HONOLULU)
 
-    assert "Shanghai" not in nomes(escolhidas)
     assert all(cidade.country_code == "US" for cidade, _ in escolhidas)
+    # Todas no Havai: o continente esta a mais de 3.000 km.
+    assert all(distancia < 1_000 for _, distancia in escolhidas)
     # A escala de aneis mantem as primeiras no proprio arquipelago.
     assert escolhidas[0][1] < 100
+
+
+def test_lista_termina_em_vez_de_completar_com_cidade_solta(cidades):
+    """Quatro vizinhas honestas valem mais que cinco com uma intrusa.
+
+    Honolulu tem quatro cidades havaianas separadas o bastante; a quinta linha
+    so poderia vir do continente. O ticket pede "quatro a cinco", e e aqui que
+    o quatro acontece.
+    """
+    escolhidas = selecionar(cidades, *HONOLULU)
+
+    assert len(escolhidas) == 4
+    assert "Los Angeles" not in nomes(escolhidas)
+
+
+def test_cidade_isolada_de_verdade_mantem_as_cinco(cidades):
+    """O corte da cauda nao pode punir isolamento real.
+
+    As vizinhas de Papeete estao entre 4.094 e 4.569 km: distantes, mas um
+    conjunto — os saltos entre elas sao de 1,0x. E o salto **brusco** que
+    denuncia preenchimento, nao a distancia grande.
+    """
+    assert len(selecionar(cidades, *PAPEETE)) == 5
 
 
 @pytest.mark.parametrize(

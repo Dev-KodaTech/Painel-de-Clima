@@ -9,6 +9,7 @@ from app.main import app
 from app.services.open_meteo import GEOCODING_URL
 from tests.fixtures import (
     GEOCODING_BERLIM,
+    GEOCODING_PAPEETE,
     GEOCODING_SPRINGFIELD,
     GEOCODING_VAZIO,
 )
@@ -79,3 +80,26 @@ def test_api_externa_fora_do_ar_vira_mensagem_compreensivel():
 
     assert response.status_code == 503
     assert "indisponivel" in response.json()["detail"]
+
+
+@respx.mock
+def test_territorio_sem_nome_de_pais_ainda_vira_candidata():
+    """**Armadilha da API**: a chave `country` some para territorios.
+
+    Papeete (PF), Noumea (NC), Hong Kong (HK), Macau (MO) e Saint-Denis (RE)
+    voltam sem ela — como `results` some quando nada casa. A candidata precisa
+    sobreviver a ausencia: sem ela nao ha o que escolher, e Papeete e o caso de
+    cidade isolada que o painel de vizinhas existe para servir.
+    """
+    respx.get(GEOCODING_URL).mock(
+        return_value=httpx.Response(200, json=GEOCODING_PAPEETE)
+    )
+
+    response = client.get("/api/cities", params={"q": "Papeete"})
+
+    assert response.status_code == 200
+    (candidata,) = response.json()["results"]
+    assert candidata["name"] == "Papeete"
+    # A sigla sempre vem, e e ela que identifica o lugar na ausencia do nome.
+    assert candidata["country_code"] == "PF"
+    assert candidata["country"] == ""

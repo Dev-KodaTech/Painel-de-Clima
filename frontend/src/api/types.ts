@@ -114,6 +114,7 @@ export type Alerta = {
 export type Nearby = {
   name: string;
   country_code: string;
+  /** Inteiro: a distancia e estimada sobre a esfera e vem arredondada ao km. */
   distance_km: number;
   temperature: number;
   weather_code: number;
@@ -138,7 +139,8 @@ export type WeatherResponse = {
   sun: Sun;
   /** No maximo duas. Lista vazia e o caminho normal, nao erro. */
   alerts: Alerta[];
-  /** De quatro a cinco, da mais perto para a mais longe. */
+  /** Ate cinco, da mais perto para a mais longe. Pode ter menos numa cidade
+   * cujas vizinhas acabam antes — Honolulu tem quatro. */
   nearby: Nearby[];
   units: Units;
   attribution: string;

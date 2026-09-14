@@ -165,7 +165,10 @@ class Nearby(BaseModel):
 
     name: str
     country_code: str
-    distance_km: float = Field(
+    # Inteiro, e nao `float`: a distancia e estimada sobre a esfera e exibida
+    # arredondada ao km. Declara-la fracionaria prometeria uma precisao que o
+    # valor nao tem e que ninguem le.
+    distance_km: int = Field(
         description="Distancia em linha reta ate a cidade consultada, em km."
     )
     temperature: float
@@ -198,9 +201,11 @@ class WeatherResponse(BaseModel):
     )
     nearby: list[Nearby] = Field(
         description=(
-            "De quatro a cinco cidades vizinhas, da mais perto para a mais "
-            "longe. Numa cidade isolada elas sao distantes, e a distancia "
-            "obrigatoria de cada item e o que torna a comparacao honesta."
+            "Ate cinco cidades vizinhas, da mais perto para a mais longe. "
+            "Numa cidade isolada elas sao distantes, e a distancia obrigatoria "
+            "de cada item e o que torna a comparacao honesta; quando a lista "
+            "so poderia ser completada por uma cidade solta — Honolulu e o "
+            "continente —, ela termina antes."
         )
     )
     units: Units

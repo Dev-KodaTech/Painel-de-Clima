@@ -32,8 +32,24 @@ RAIO_PROPRIA_CIDADE_KM = 15.0
 #: tabela inteira com nomes da mesma mancha urbana.
 SEPARACAO_MINIMA_KM = 25.0
 
-#: Quantas exibir. O design comporta de quatro a cinco linhas.
+#: Quantas exibir, no maximo. O design comporta de quatro a cinco linhas, e
+#: uma lista pode terminar com quatro quando a quinta seria uma cidade solta
+#: (ver `SALTO_MAXIMO`).
 QUANTAS = 5
+
+#: Quantas vezes mais distante que a anterior uma vizinha pode estar antes de
+#: deixar de ser vizinha.
+#:
+#: Esgotado o arquipelago, Honolulu alcancava **Los Angeles a 4.120 km** — a
+#: maior cidade do anel largo, que e exatamente a "megalopole distante" que o
+#: criterio de raio fixo produzia. Uma cidade isolada de verdade nao tem esse
+#: perfil: as vizinhas de Papeete estao todas entre 4.094 e 4.569 km (saltos de
+#: 1,0x), porque sao uma regiao, ainda que remota. O salto brusco no fim da
+#: lista nao e isolamento, e preenchimento.
+#:
+#: Cinco e o limiar: o maior salto legitimo medido e 6,9x (Reykjavik, que sai
+#: da Islandia para as ilhas britanicas) e nao ha caso entre 7x e 9x.
+SALTO_MAXIMO = 7.0
 
 #: Raio medio da Terra, em km.
 _RAIO_TERRA_KM = 6371.0
@@ -99,7 +115,27 @@ def selecionar(
 
     # Por distancia: a tabela e uma comparacao com a regiao em volta, e lida de
     # perto para longe ela mostra a regiao se abrindo.
-    return sorted(escolhidas, key=lambda par: par[1])
+    return _sem_a_cauda_solta(sorted(escolhidas, key=lambda par: par[1]))
+
+
+def _sem_a_cauda_solta(
+    ordenadas: list[tuple[CidadeLocal, float]],
+) -> list[tuple[CidadeLocal, float]]:
+    """Corta o fim da lista a partir de um salto de distancia desproporcional.
+
+    Uma vizinha muitas vezes mais distante que a anterior nao e vizinha: e a
+    maior cidade que sobrou no anel largo. Cortar da quatro linhas em vez de
+    cinco, e quatro linhas honestas e o que o ticket pede.
+
+    So o fim da lista e cortado. Um salto no meio e uma regiao que rareia —
+    Honolulu passa de 16 km para 151 km entre ilhas do mesmo arquipelago —, e
+    ali as seguintes ainda formam um conjunto.
+    """
+    for indice in range(len(ordenadas) - 1, 0, -1):
+        anterior = ordenadas[indice - 1][1]
+        if anterior > 0 and ordenadas[indice][1] / anterior > SALTO_MAXIMO:
+            return ordenadas[:indice]
+    return ordenadas
 
 
 def _perto_de_alguma(

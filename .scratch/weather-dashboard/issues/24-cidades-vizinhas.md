@@ -33,3 +33,18 @@ Implementado. Notas do que a implementacao verificou ou mudou:
 - **A resposta multi-coordenada e assimetrica**: varias coordenadas devolvem lista, uma so devolve objeto. O cliente normaliza para lista sempre; ha teste de contrato para as duas formas.
 - **A sigla do pais entrou na tabela** (`28 km · FR`): sem ela, as vizinhas de Basileia se leem como suicas, e a historia 27 pede justamente que a diferenca de pais apareca.
 - Medido: carga 214 ms / ~13 MB, selecao ~30 ms, payload 3,4 KB.
+
+### Achados da revisao
+
+Aplicados:
+
+- **Honolulu completava a lista com Los Angeles (4.120 km)** — esgotado o arquipelago, a quinta linha vinha do continente, que e a "megalopole distante" que o criterio de raio fixo produzia. A lista agora termina quando a proxima vizinha esta mais de 7x mais longe que a anterior: Honolulu devolve quatro, e o ticket pede "quatro a cinco". Cidade isolada de verdade nao e punida — as vizinhas de Papeete tem saltos de 1,0x entre si e continuam cinco.
+- **O teste de Honolulu proibia um nome, nao um comportamento**: barrar `"Shanghai"` deixava passar Los Angeles. Agora afirma a propriedade (todas no Havai, todas abaixo de 1.000 km).
+- `distance_km` passou a `int` no contrato: o valor sempre foi arredondado, e `float` prometia precisao que uma estimativa sobre a esfera nao tem.
+- Imports no topo e `BERLIM` proprio em `test_nearby.py`, como os demais modulos de teste fazem; typo `vizenhas`.
+- Teste de `/api/cities` para territorio sem `country`, cobrindo o endpoint que vem antes do painel.
+
+Descartado:
+
+- A revisao apontou que `/api/cities` devolveria `500` para Papeete porque `Cidade.country` e obrigatorio. Nao procede: `para_cidade` faz `bruto.get("country", "")` antes do modelo, entao o endpoint devolve `200`. Verificado com a resposta real da API e no browser — Papeete busca, seleciona e renderiza. O teste novo trava isso.
+- A revisao chamou os aneis de "cumulativos, nao anelares". E deliberado: uma banda estrita devolveria vazio para quem nao tem vizinha naquela faixa, e "expandir ate encher" e justamente o que trata isolamento.

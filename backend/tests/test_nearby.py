@@ -13,10 +13,21 @@ cidade e leitura, e a distancia obrigatoria no payload.
 import httpx
 import pytest
 import respx
+from fastapi.testclient import TestClient
 
+from app import dataset
+from app.main import app
 from app.services.open_meteo import FORECAST_URL
 from tests.fixtures import FORECAST_BERLIM, atual_de_varias
-from tests.test_weather import BERLIM
+
+BERLIM = {
+    "latitude": 52.52437,
+    "longitude": 13.41053,
+    "name": "Berlin",
+    "country": "Germany",
+    "country_code": "DE",
+    "admin1": "Land Berlin",
+}
 
 #: Uma por vizinha esperada, todas distintas: uma correspondencia trocada
 #: aparece como a temperatura errada na linha errada, nao como um empate.
@@ -26,10 +37,6 @@ TEMPERATURAS = [11.1, 12.2, 13.3, 14.4, 15.5]
 @pytest.fixture
 def app_com_dataset():
     """O app com o `lifespan` executado, e portanto com o dataset carregado."""
-    from fastapi.testclient import TestClient
-
-    from app.main import app
-
     with TestClient(app) as client:
         yield client
 
@@ -175,11 +182,6 @@ def test_sem_dataset_carregado_o_painel_nao_cai(monkeypatch):
 
     Sem cidades nao ha coordenada a pedir, e a segunda chamada nem acontece.
     """
-    from fastapi.testclient import TestClient
-
-    from app import dataset
-    from app.main import app
-
     monkeypatch.setattr(dataset, "_cidades", [])
 
     with respx.mock:
