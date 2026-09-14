@@ -44,6 +44,24 @@ rodá-lo sob demanda:
 cd backend && uv run pytest -m contract
 ```
 
+## Endpoints
+
+| Endpoint | Para que serve |
+|---|---|
+| `GET /api/cities?q=` | Candidatas de cidade para desambiguação, com estado, país e população. Nada encontrado devolve `200` com lista vazia. |
+| `GET /api/weather?latitude=&longitude=&name=` | O painel da cidade escolhida. A identidade da cidade vem de `/api/cities` e viaja de volta como parâmetro. |
+
+A documentação interativa fica em http://localhost:8000/docs, gerada dos
+modelos Pydantic.
+
+Dois detalhes do contrato que surpreendem:
+
+- `current.high` e `current.low` vêm do bloco **diário** da Open-Meteo, que não
+  os fornece em `current`.
+- Os horários viajam **sem sufixo de fuso** (`2026-09-14T03:00`) e são horário
+  de parede da cidade consultada, acompanhados de `timezone` e
+  `utc_offset_seconds`. Interpretá-los como UTC desloca tudo em horas.
+
 ## Configuração
 
 | Variável | Padrão | Para que serve |

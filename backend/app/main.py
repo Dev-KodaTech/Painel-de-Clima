@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import cors_origins
-from app.routers import health
+from app.routers import health, weather
 
 app = FastAPI(title="Weather Dashboard API")
 
@@ -16,3 +16,4 @@ app.add_middleware(
 )
 
 app.include_router(health.router)
+app.include_router(weather.router)

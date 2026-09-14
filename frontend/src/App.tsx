@@ -1,48 +1,100 @@
-import { useEffect, useState } from "react";
+/**
+ * A primeira fatia do painel: buscar uma cidade e ver o card do dia.
+ *
+ * Os demais paineis (tendencia horaria, semana, sol, precipitacao, condicoes
+ * previstas, cidades proximas) entram nos tickets seguintes, no grid de tres
+ * faixas descrito na spec.
+ */
 
-type Health = {
-  status: string;
-  service: string;
-};
+import { useEffect, useState } from "react";
+import { buscarPainel, mensagemDeErro } from "./api/client";
+import type { Cidade, WeatherResponse } from "./api/types";
+import { BuscaCidade } from "./components/BuscaCidade";
+import { CardDoDia } from "./components/CardDoDia";
 
 /**
- * Esqueleto: prova que o caminho frontend -> proxy do Vite -> backend esta
- * ligado, com a paleta e a tipografia do design ja aplicadas. Sera substituido
- * pelos nove paineis.
+ * O painel e sempre um destes quatro estados, nunca uma combinacao deles.
+ * Um unico estado impede o par invalido "carregando com erro" que tres
+ * booleanos independentes permitiriam.
  */
+type Estado =
+  | { tipo: "vazio" }
+  | { tipo: "carregando" }
+  | { tipo: "pronto"; painel: WeatherResponse }
+  | { tipo: "erro"; mensagem: string };
+
 export default function App() {
-  const [health, setHealth] = useState<Health | null>(null);
-  const [failed, setFailed] = useState(false);
+  const [cidade, setCidade] = useState<Cidade | null>(null);
+  const [estado, setEstado] = useState<Estado>({ tipo: "vazio" });
 
   useEffect(() => {
-    fetch("/api/health")
-      .then((response) => {
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        return response.json() as Promise<Health>;
-      })
-      .then(setHealth)
-      .catch(() => setFailed(true));
-  }, []);
+    if (!cidade) return;
+
+    const controller = new AbortController();
+
+    buscarPainel(cidade, controller.signal)
+      .then((painel) => setEstado({ tipo: "pronto", painel }))
+      .catch((falha: unknown) => {
+        if (controller.signal.aborted) return;
+        setEstado({
+          tipo: "erro",
+          mensagem: mensagemDeErro(falha, "Nao foi possivel carregar o painel."),
+        });
+      });
+
+    return () => controller.abort();
+  }, [cidade]);
 
   return (
-    <main className="grid min-h-screen place-items-center p-4">
-      <section className="w-full max-w-md rounded-card bg-card p-[18px] shadow-card">
-        <h1 className="text-sm font-semibold">Painel de Clima</h1>
-        <p className="mt-1 text-[13px] text-ink-2">
-          Esqueleto do ambiente de desenvolvimento.
-        </p>
+    <div className="min-h-screen">
+      <div className="mx-auto flex max-w-5xl flex-col gap-4 px-6 py-8">
+        <header className="flex flex-wrap items-center justify-between gap-4">
+          <h1 className="text-sm font-semibold">Painel de Clima</h1>
+          <BuscaCidade
+            onEscolher={(escolhida) => {
+              // O clique e que inicia o carregamento: o efeito so busca.
+              setEstado({ tipo: "carregando" });
+              setCidade(escolhida);
+            }}
+          />
+        </header>
 
-        <p className="mt-4 text-[11px] tracking-wide text-ink-3 uppercase">
-          Backend
-        </p>
-        <p className="mt-1 text-[13px]">
-          {failed
-            ? "Backend indisponivel — suba o uvicorn e recarregue."
-            : health
-              ? `${health.service}: ${health.status}`
-              : "Carregando…"}
-        </p>
-      </section>
-    </main>
+        <main>
+          {estado.tipo === "vazio" && (
+            <p className="text-[13px] text-ink-2">
+              Busque uma cidade para ver o tempo agora.
+            </p>
+          )}
+
+          {estado.tipo === "carregando" && (
+            <p role="status" className="text-[13px] text-ink-2">
+              Carregando o painel…
+            </p>
+          )}
+
+          {estado.tipo === "erro" && (
+            <p role="alert" className="text-[13px] text-ink-2">
+              {estado.mensagem}
+            </p>
+          )}
+
+          {estado.tipo === "pronto" && (
+            <div className="max-w-md">
+              <CardDoDia
+                location={estado.painel.location}
+                current={estado.painel.current}
+                units={estado.painel.units}
+              />
+            </div>
+          )}
+        </main>
+
+        {estado.tipo === "pronto" && (
+          <footer className="mt-2 text-[11px] text-ink-3">
+            {estado.painel.attribution}
+          </footer>
+        )}
+      </div>
+    </div>
   );
 }
