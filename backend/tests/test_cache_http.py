@@ -12,11 +12,12 @@ import pytest
 import respx
 from fastapi.testclient import TestClient
 
+from app import cache_do_processo
 from app.main import app
-from app.services import open_meteo
 from app.services.cache import Cache
 from app.services.open_meteo import FORECAST_URL
-from tests.fixtures import FORECAST_BERLIM
+from tests.conftest import Relogio
+from tests.fixtures import FORECAST_BERLIM, atual_de_varias
 
 client = TestClient(app)
 
@@ -34,30 +35,19 @@ BERLIM = {
 BERLIM_QUASE_IGUAL = {**BERLIM, "latitude": 52.5244, "longitude": 13.4105}
 
 
-class _Relogio:
-    """Relogio injetado, avancado a mao."""
-
-    def __init__(self) -> None:
-        self.instante = 0.0
-
-    def __call__(self) -> float:
-        return self.instante
-
-    def avancar(self, segundos: float) -> None:
-        self.instante += segundos
-
-
 @pytest.fixture
-def relogio(monkeypatch):
+def relogio():
     """Substitui o cache do processo por um com relogio sob controle.
 
     O cache e estado de processo compartilhado: sem a troca, uma entrada
     deixada por um teste serviria o seguinte, e a ordem de execucao mudaria o
     resultado.
     """
-    relogio = _Relogio()
-    monkeypatch.setattr(open_meteo, "cache", Cache(ttl_segundos=600, agora=relogio))
-    return relogio
+    relogio = Relogio()
+    original = cache_do_processo.atual()
+    cache_do_processo.substituir(Cache(ttl_segundos=600, agora=relogio))
+    yield relogio
+    cache_do_processo.substituir(original)
 
 
 @respx.mock
@@ -137,3 +127,63 @@ def test_falha_da_api_nao_fica_cacheada(relogio):
     rota.mock(return_value=httpx.Response(200, json=FORECAST_BERLIM))
 
     assert client.get("/api/weather", params=BERLIM).status_code == 200
+
+
+@pytest.fixture
+def app_com_dataset():
+    """O app com o `lifespan` executado, e portanto com o dataset carregado.
+
+    Sem ele a lista de cidades fica vazia, o bloco `nearby` sai vazio e a
+    **segunda** chamada externa nunca acontece — os testes acima contam so a da
+    previsao, ainda que as duas batam na mesma URL.
+    """
+    with TestClient(app) as cliente:
+        yield cliente
+
+
+def _mockar_as_duas_chamadas():
+    """As duas chamadas batem na mesma URL e se distinguem pelos parametros.
+
+    A da previsao pede sete dias; a das vizinhas pede um. Contar as duas
+    separadamente e o que torna visivel que o cache cobre **as duas**, e nao
+    so a cara.
+    """
+    previsao = respx.get(FORECAST_URL, params__contains={"forecast_days": "7"}).mock(
+        return_value=httpx.Response(200, json=FORECAST_BERLIM)
+    )
+    vizinhas = respx.get(FORECAST_URL, params__contains={"forecast_days": "1"}).mock(
+        return_value=httpx.Response(200, json=atual_de_varias(TEMPERATURAS_VIZINHAS))
+    )
+    return previsao, vizinhas
+
+
+#: Uma por vizinha de Berlim, todas distintas.
+TEMPERATURAS_VIZINHAS = [11.1, 12.2, 13.3, 14.4, 15.5]
+
+
+@respx.mock
+def test_o_cache_cobre_tambem_a_chamada_das_vizinhas(relogio, app_com_dataset):
+    """Ambas as chamadas externas sao poupadas, nao apenas a da previsao."""
+    previsao, vizinhas = _mockar_as_duas_chamadas()
+
+    primeiro = app_com_dataset.get("/api/weather", params=BERLIM).json()
+    segundo = app_com_dataset.get("/api/weather", params=BERLIM).json()
+
+    # A primeira consulta faz as duas; a segunda, nenhuma.
+    assert previsao.call_count == 1
+    assert vizinhas.call_count == 1
+    # E a tabela servida do cache continua preenchida e igual.
+    assert len(segundo["nearby"]) == 5
+    assert primeiro["nearby"] == segundo["nearby"]
+
+
+@respx.mock
+def test_apos_o_ttl_as_duas_chamadas_sao_refeitas(relogio, app_com_dataset):
+    previsao, vizinhas = _mockar_as_duas_chamadas()
+
+    app_com_dataset.get("/api/weather", params=BERLIM)
+    relogio.avancar(601)
+    app_com_dataset.get("/api/weather", params=BERLIM)
+
+    assert previsao.call_count == 2
+    assert vizinhas.call_count == 2

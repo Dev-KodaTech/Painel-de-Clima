@@ -7,7 +7,8 @@ precisa saber que `results` pode sumir nem que `is_day` vem como inteiro.
 
 import httpx
 
-from app.services.cache import Cache, chave_de_coordenada
+from app import cache_do_processo
+from app.services.cache import chave_de_coordenada
 
 GEOCODING_URL = "https://geocoding-api.open-meteo.com/v1/search"
 FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
@@ -18,16 +19,6 @@ FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
 CANDIDATAS_PADRAO = 10
 
 TIMEOUT = httpx.Timeout(10.0)
-
-#: O cache das consultas de previsao, compartilhado pelo processo.
-#:
-#: Cobre **apenas** as chamadas por coordenada. A busca por texto fica de fora
-#: de proposito: dispara a cada tecla digitada, e a chave seria o texto cru —
-#: "Ber", "Berl", "Berli" sao tres entradas para a mesma cidade, e o conjunto
-#: de chaves possiveis nao tem limite. E a chamada barata das duas, que nao
-#: arrasta previsao junto.
-cache = Cache()
-
 
 class OpenMeteoIndisponivel(Exception):
     """A API externa falhou: rede, timeout ou status de erro.
@@ -99,7 +90,7 @@ async def buscar_previsao(
     sete dias de variaveis —, e a fonte so atualiza a cada ~15 minutos, entao
     repeti-la dentro do TTL devolveria os mesmos numeros gastando cota.
     """
-    return await cache.obter_async(
+    return await cache_do_processo.atual().obter(
         chave_de_coordenada("previsao", latitude, longitude),
         lambda: _get(
             client,
@@ -172,7 +163,7 @@ async def buscar_atual_de_varias(
     chave = chave_de_coordenada(
         "atual", *[valor for par in coordenadas for valor in par]
     )
-    return await cache.obter_async(chave, buscar)
+    return await cache_do_processo.atual().obter(chave, buscar)
 
 
 async def _get(client: httpx.AsyncClient, url: str, params: dict) -> dict:

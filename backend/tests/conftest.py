@@ -1,6 +1,23 @@
 import pytest
 
-from app.services import open_meteo
+from app import cache_do_processo
+
+
+class Relogio:
+    """Relogio injetado, avancado a mao.
+
+    Todo teste de expiracao usa este: um que espera o TTL de verdade leva dez
+    minutos, e um que encurta o TTL testa um valor que a producao nao usa.
+    """
+
+    def __init__(self) -> None:
+        self.instante = 0.0
+
+    def __call__(self) -> float:
+        return self.instante
+
+    def avancar(self, segundos: float) -> None:
+        self.instante += segundos
 
 
 @pytest.fixture
@@ -22,4 +39,4 @@ def cache_limpo():
     inclusive os que ainda nao existem — deixar a limpeza a cargo de quem
     escreve o teste seria confiar em que ninguem esquecera.
     """
-    open_meteo.cache.limpar()
+    cache_do_processo.limpar()

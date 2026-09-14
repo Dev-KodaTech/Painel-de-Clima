@@ -45,38 +45,29 @@ class Cache:
         #: chave -> (instante em que foi guardado, valor)
         self._entradas: dict[str, tuple[float, Any]] = {}
 
-    def obter(self, chave: str, buscar: Callable[[], Any]) -> Any:
+    async def obter(self, chave: str, buscar: Callable[[], Awaitable[Any]]) -> Any:
         """O valor de `chave`, do cache ou de `buscar()`.
 
         `buscar` so e chamada quando nao ha entrada valida — e o que torna
         "duas consultas, uma chamada externa" observavel sem espiar o interior
         do cache.
-        """
-        guardado = self._guardado(chave)
-        if guardado is not None:
-            return guardado
 
-        valor = buscar()
-        # Guardado **depois** da chamada: se `buscar` levantar, nada e gravado
-        # e a proxima consulta tenta de novo. Cachear uma falha prenderia o
-        # painel numa indisponibilidade passageira por dez minutos.
-        self._entradas[chave] = (self._agora(), valor)
-        return valor
+        Assincrona porque o que se cacheia sao chamadas de rede, e nao ha outro
+        tipo de chamador. Uma variante sincrona so existiria para os testes
+        usarem, e exercitaria um caminho que a producao nunca roda.
 
-    async def obter_async(
-        self, chave: str, buscar: Callable[[], Awaitable[Any]]
-    ) -> Any:
-        """A versao para chamadas de rede, que sao `async`.
-
-        Mesma regra da sincrona; o que muda e so o `await`. As duas existem
-        porque o cache e util nos dois lados e nao ha como ter uma so sem
-        tornar assincrono quem nao precisa ser.
+        `buscar` e uma **fabrica** de corrotinas, nao uma corrotina: recebe-la
+        pronta faria o chamador cria-la mesmo na consulta servida do cache, e
+        uma corrotina nunca aguardada e um aviso do runtime.
         """
         guardado = self._guardado(chave)
         if guardado is not None:
             return guardado
 
         valor = await buscar()
+        # Guardado **depois** da chamada: se `buscar` levantar, nada e gravado
+        # e a proxima consulta tenta de novo. Cachear uma falha prenderia o
+        # painel numa indisponibilidade passageira por dez minutos.
         self._entradas[chave] = (self._agora(), valor)
         return valor
 
