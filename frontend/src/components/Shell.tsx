@@ -14,7 +14,7 @@ import { startTransition, useEffect, useRef, useState } from "react";
 import { Outlet, useLocation, useSearchParams } from "react-router";
 import { buscarPainel, mensagemDeErro } from "../api/client";
 import type { Cidade, WeatherResponse } from "../api/types";
-import { cidadeDosParametros, parametrosDaCidade } from "../cidadeNaUrl";
+import { cidadeDosParametros, trocarCidade } from "../cidadeNaUrl";
 import { descobrirCidadeInicial } from "../cidadeInicial";
 import type { ContextoDoPainel, Estado } from "../estadoDoPainel";
 import { dataPorExtenso } from "../formato";
@@ -176,7 +176,12 @@ export function Shell() {
   function escolher(escolhida: Cidade) {
     // `setSearchParams` preserva o caminho: buscar em /vizinhas continua em
     // /vizinhas, com a cidade nova.
-    setParametros(parametrosDaCidade(escolhida));
+    //
+    // `trocarCidade` preserva os **parametros** que nao sao da cidade, pelo
+    // mesmo motivo: quem escolheu "6 meses" na Tendencia e busca outra cidade
+    // quer as duas no mesmo periodo. Um conjunto novo de parametros apagaria a
+    // janela junto com a cidade antiga.
+    setParametros(trocarCidade(parametros, escolhida));
   }
 
   // A data e a de hoje **na cidade consultada**, e por isso so existe depois

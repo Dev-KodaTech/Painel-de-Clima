@@ -13,6 +13,15 @@ from app.services.cache import chave_de_coordenada
 GEOCODING_URL = "https://geocoding-api.open-meteo.com/v1/search"
 FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
 
+#: O **segundo host** da Open-Meteo: a reanalise ERA5, de onde vem o historico
+#: climatologico. Mesmo fornecedor e mesma licenca CC-BY 4.0 que a previsao,
+#: entao a atribuicao ja existente continua valendo sem mudanca.
+#:
+#: Medido: o arquivo cobre ate o dia corrente, sem o lag de ~5 dias que se
+#: esperaria de uma reanalise. Isso dispensa costurar o fim do arquivo com o
+#: inicio da previsao — a janela atual sai dele inteira.
+ARCHIVE_URL = "https://archive-api.open-meteo.com/v1/archive"
+
 #: Quantas candidatas pedir na desambiguacao. O default da API e 10, e a
 #: busca e fuzzy ("Springfield" tambem traz "Palmyra"), entao o frontend exibe
 #: estado e pais para que a escolha seja informada.
@@ -164,6 +173,102 @@ async def buscar_atual_de_varias(
         "atual", *[valor for par in coordenadas for valor in par]
     )
     return await cache_do_processo.atual().obter(chave, buscar)
+
+
+#: As variaveis diarias do arquivo, uma por serie ou metrica da pagina
+#: Tendencia.
+#:
+#: **`uv_index_max` nao esta aqui, e a ausencia e deliberada.** A API a aceita e
+#: responde `200`, mas devolve `null` para todos os dias, com `daily_units`
+#: igual a `"undefined"` — a reanalise ERA5 nao tem UV. Pedi-la traria uma
+#: coluna de nulos que um consumidor desatento plota como linha reta no zero. O
+#: UV da pagina vem da previsao, num bloco proprio.
+VARIAVEIS_DO_ARQUIVO = (
+    "temperature_2m_max",
+    "temperature_2m_min",
+    "precipitation_sum",
+    "relative_humidity_2m_mean",
+    "wind_speed_10m_max",
+    "wind_direction_10m_dominant",
+)
+
+
+async def buscar_arquivo(
+    client: httpx.AsyncClient,
+    latitude: float,
+    longitude: float,
+    inicio: str,
+    fim: str,
+    *,
+    passado: bool,
+) -> dict:
+    """O historico climatologico de um intervalo de datas.
+
+    **Um intervalo por chamada**: a API nao aceita dois, e pedir do ano passado
+    ate hoje traria 365 dias para usar 60. A pagina faz duas chamadas — a janela
+    atual e a mesma janela do ano anterior — e casa as duas series depois.
+
+    `passado` escolhe a familia de cache, nao o que se pede: o dado do ano
+    anterior nao muda mais, entao reconsulta-lo a cada dez minutos gasta cota
+    para receber os mesmos numeros. O da janela atual termina no dia corrente,
+    que ainda muda.
+    """
+    cache = (
+        cache_do_processo.do_passado() if passado else cache_do_processo.atual()
+    )
+    # O intervalo entra na chave junto da coordenada, pelo mesmo motivo que a
+    # coordenada entra: duas janelas da mesma cidade sao consultas diferentes.
+    chave = f"{chave_de_coordenada('arquivo', latitude, longitude)}:{inicio}:{fim}"
+
+    return await cache.obter(
+        chave,
+        lambda: _get(
+            client,
+            ARCHIVE_URL,
+            params={
+                "latitude": latitude,
+                "longitude": longitude,
+                "start_date": inicio,
+                "end_date": fim,
+                "daily": ",".join(VARIAVEIS_DO_ARQUIVO),
+                "timezone": "auto",
+            },
+        ),
+    )
+
+
+#: As variaveis de UV pedidas a previsao: o dia corrente hora a hora para o
+#: grafico, e a maxima dos sete dias para o numero de resumo.
+VARIAVEIS_DE_UV_HORARIAS = ("uv_index",)
+VARIAVEIS_DE_UV_DIARIAS = ("uv_index_max",)
+
+
+async def buscar_uv(
+    client: httpx.AsyncClient, latitude: float, longitude: float
+) -> dict:
+    """O indice UV previsto de uma coordenada.
+
+    Chamada a parte da previsao do painel, e nao uma variavel a mais nela: o
+    painel e lido pelas seis paginas e so a Tendencia exibe UV. Engordar a
+    chamada compartilhada faria as outras cinco pagarem pelo bloco.
+
+    Cacheada com o TTL curto: e previsao, e ela muda.
+    """
+    return await cache_do_processo.atual().obter(
+        chave_de_coordenada("uv", latitude, longitude),
+        lambda: _get(
+            client,
+            FORECAST_URL,
+            params={
+                "latitude": latitude,
+                "longitude": longitude,
+                "hourly": ",".join(VARIAVEIS_DE_UV_HORARIAS),
+                "daily": ",".join(VARIAVEIS_DE_UV_DIARIAS),
+                "timezone": "auto",
+                "forecast_days": DIAS_DE_PREVISAO,
+            },
+        ),
+    )
 
 
 async def _get(client: httpx.AsyncClient, url: str, params: dict) -> dict:

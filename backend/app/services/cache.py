@@ -19,6 +19,13 @@ from typing import Any
 #: receber os mesmos numeros de volta.
 TTL_PADRAO_SEGUNDOS = 600
 
+#: Vinte e quatro horas, para o historico do ano anterior. **O passado nao
+#: muda**: a reanalise de setembro de 2025 ja esta fechada, e reconsulta-la a
+#: cada dez minutos gastaria cota para receber os mesmos numeros. O dia nao e
+#: infinito so porque o processo tambem nao e — e porque a reanalise recebe
+#: correcoes tardias raras.
+TTL_DO_PASSADO_SEGUNDOS = 86_400
+
 
 class Cache:
     """Guarda valores por chave, ate o TTL expirar.

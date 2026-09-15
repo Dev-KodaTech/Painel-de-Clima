@@ -46,7 +46,7 @@ export const PAGINAS: Pagina[] = [
     caminho: "/tendencia",
     titulo: "Tendencia",
     oQueVem:
-      "A tendencia horaria de temperatura e a precipitacao em tela cheia, sem o recorte do cartao. Ainda nao construida.",
+      "O historico climatologico da cidade comparado com o mesmo periodo do ano anterior, mais chuva, umidade, vento e indice UV na janela temporal escolhida.",
     Icone: IconeBarras,
   },
   {

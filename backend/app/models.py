@@ -16,6 +16,19 @@ UNIDADES_PADRAO = {
     "distance": "km",
 }
 
+#: As unidades do historico. Repete as tres do painel e acrescenta duas.
+#:
+#: `uv` e string vazia de proposito: o indice UV **nao tem unidade**, e um
+#: rotulo ali faria a interface exibir "7 UV". Vazio e o fato, e a interface
+#: concatena sem caso especial.
+UNIDADES_DO_HISTORICO = {
+    "temperature": "°C",
+    "precipitation": "mm",
+    "wind_speed": "km/h",
+    "humidity": "%",
+    "uv": "",
+}
+
 #: Exigido por CC-BY 4.0 pela Open-Meteo e pelo GeoNames. String pronta, para
 #: que o frontend nao monte texto de licenca.
 ATRIBUICAO = "Dados: Open-Meteo.com (CC BY 4.0) · Cidades: GeoNames (CC BY 4.0)"
@@ -209,4 +222,164 @@ class WeatherResponse(BaseModel):
         )
     )
     units: Units
+    attribution: str
+
+
+#: As tres janelas temporais que a pagina Tendencia analisa. Conjunto fechado,
+#: e nao um numero de dias livre: `janela` entra por parametro de URL, e um
+#: valor livre viraria aritmetica de data com entrada arbitraria — "6000d" e
+#: uma requisicao de dezesseis anos a API externa.
+Janela = Literal["7d", "30d", "6m"]
+
+
+class Periodo(BaseModel):
+    """As datas das duas janelas que a pagina compara.
+
+    Existe para que a interface **nao recalcule datas**: "30 dias" termina
+    ontem ou hoje conforme o arquivo, e refazer essa conta no frontend seria um
+    segundo lugar para ela estar errada.
+    """
+
+    janela: Janela
+    inicio: str = Field(description="Primeiro dia da janela atual (`2026-08-17`).")
+    fim: str = Field(description="Ultimo dia da janela atual.")
+    inicio_anterior: str = Field(
+        description="Primeiro dia da mesma janela no ano anterior."
+    )
+    fim_anterior: str
+
+
+class DiaDoHistorico(BaseModel):
+    """Um dia do historico climatologico: medicao, nao previsao.
+
+    Nao ha `weather_code` nem icone aqui: a reanalise nao os fornece, e o que a
+    pagina exibe sao series numericas, nao cards de condicao.
+
+    Todo campo fora de `date` e opcional porque o arquivo e **incompleto nas
+    bordas**: um dia sem medicao vem como `null`, e descartar o dia inteiro por
+    causa de uma variavel faltando esconderia os outros quatro valores dele.
+    """
+
+    date: str = Field(description="Data local da cidade (`2026-09-14`).")
+    high: float | None = None
+    low: float | None = None
+    precipitation_mm: float | None = None
+    humidity: float | None = Field(
+        default=None, description="Umidade relativa media do dia, em %."
+    )
+    wind_speed: float | None = Field(
+        default=None, description="Velocidade maxima do vento do dia."
+    )
+    wind_direction: float | None = Field(
+        default=None, description="Direcao dominante do vento, em graus."
+    )
+
+
+class PontoDeUv(BaseModel):
+    """O indice UV de uma hora."""
+
+    time: str = Field(description="Horario de parede da cidade (`2026-09-15T13:00`).")
+    uv: float
+
+
+class Uv(BaseModel):
+    """O indice UV — **so do futuro**, e por isso um bloco irmao de `serie`.
+
+    A reanalise ERA5 nao tem UV: o arquivo aceita `uv_index_max` e devolve
+    `null` para todos os dias, com unidade `"undefined"`. Medido contra o
+    servico real.
+
+    A consequencia e regra de produto, nao detalhe: o UV **nunca** participa da
+    comparacao com o ano anterior e **nunca** cobre 30 dias ou 6 meses. Um
+    campo dentro de `serie` seria `null` em 173 dos 180 pontos e todo consumidor
+    teria de saber disso; a forma do payload e que deve carregar o fato.
+    """
+
+    horas: list[PontoDeUv] = Field(
+        description="O dia corrente, hora a hora. Vazio quando a previsao nao o traz."
+    )
+    maximo_da_semana: float | None = Field(
+        default=None, description="O maior indice dos sete dias previstos."
+    )
+    nota: str = Field(
+        description="Por que o UV nao acompanha a janela, ja em texto para exibir."
+    )
+
+
+class ResumoDoHistorico(BaseModel):
+    """Os numeros prontos da janela, calculados no backend.
+
+    Media, acumulado e contagem sobre ate 180 pontos sao a mesma operacao para
+    qualquer cliente; mante-las aqui evita que a pagina reimplemente estatistica
+    — e que duas paginas a reimplementem de dois jeitos.
+
+    Os campos sao opcionais porque uma janela sem dado algum nao tem media: uma
+    media de lista vazia seria `0`, que se le como "fez zero grau".
+    """
+
+    chuva_total_mm: float | None = None
+    chuva_total_anterior_mm: float | None = None
+    dias_com_chuva: int = Field(
+        description=(
+            "Dias da janela em que choveu. Existe porque 60 mm em tres dias e "
+            "60 mm em vinte dias sao periodos diferentes."
+        )
+    )
+    umidade_minima: float | None = None
+    umidade_media: float | None = None
+    umidade_maxima: float | None = None
+    vento_maximo: float | None = None
+    direcao_dominante: float | None = Field(
+        default=None, description="Direcao dominante do vento na janela, em graus."
+    )
+    rumo_dominante: str | None = Field(
+        default=None,
+        description=(
+            "A mesma direcao em ponto cardeal (`NO`), porque 'noroeste' se le e "
+            "'312°' se calcula."
+        ),
+    )
+    temperatura_media: float | None = None
+    temperatura_media_anterior: float | None = None
+    diferenca_media: float | None = Field(
+        default=None,
+        description=(
+            "Quanto a janela atual esta acima (positivo) ou abaixo do mesmo "
+            "periodo do ano anterior. `null` quando falta um dos dois."
+        ),
+    )
+
+
+class UnitsDoHistorico(BaseModel):
+    """Como no painel, para que a interface nunca tenha unidade em codigo.
+
+    Ganha `humidity` e `uv` em relacao as do painel; `uv` e string vazia porque
+    o indice **nao tem unidade** — e um indice, e escrever "UV" ali faria a
+    interface exibir "7 UV".
+    """
+
+    temperature: str
+    precipitation: str
+    wind_speed: str
+    humidity: str
+    uv: str
+
+
+class TrendsResponse(BaseModel):
+    """O historico climatologico de uma cidade. Um bloco por parte da pagina."""
+
+    periodo: Periodo
+    serie: list[DiaDoHistorico] = Field(
+        description="Um ponto por dia da janela atual."
+    )
+    comparacao: list[DiaDoHistorico] = Field(
+        description=(
+            "A mesma forma, para o mesmo periodo do ano anterior. Lista vazia "
+            "quando o arquivo nao cobre o periodo — caminho normal, nao erro: a "
+            "pagina esconde a segunda serie e diz por que."
+        )
+    )
+    uv: Uv
+    resumo: ResumoDoHistorico
+    units: UnitsDoHistorico
     attribution: str

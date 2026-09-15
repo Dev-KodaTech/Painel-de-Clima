@@ -58,6 +58,33 @@ O serviço público de onde vêm os dados de clima e geocodificação. Só o bac
 fala com ela; o frontend nunca.
 _Avoid_: provedor, upstream, fonte
 
+### Histórico
+
+**Histórico climatológico**:
+A série de dias passados de uma cidade, vinda da reanálise, sempre apresentada
+em comparação com o mesmo período do ano anterior. A comparação não é enfeite:
+24 °C não diz nada sozinho, e o que responde "está fora do normal?" é o ano
+passado ao lado.
+
+Distinto de *previsão*: um é medição do passado, o outro é modelo do futuro.
+Misturar os dois numa série só faria a fronteira entre medido e previsto
+desaparecer no meio do gráfico.
+_Avoid_: histórico, passado, dados antigos
+
+**Janela temporal**:
+A *escolha* de quanto passado a página Tendência analisa: 7 dias, 30 dias ou 6
+meses. É da pessoa, governa a página inteira e viaja na URL.
+
+Distinta dos *sete dias* da previsão, que são fixos e não se escolhem. Distinta
+também do **período** que ela resolve: a janela é "6 meses", o período é "17 mar
+— 15 set". Uma é a escolha, o outro é o intervalo de datas que sai dela, e o
+payload traz os dois (`janela` dentro de `periodo`).
+
+Não chame a *escolha* de período, range ou filtro — é aí que os dois se
+confundem, e foi por isso que "6 meses" e "17 mar — 15 set" chegaram a ser a
+mesma palavra.
+_Avoid_: range, filtro, "o período" como sinônimo da escolha
+
 ### Interface
 
 **Painel**:
@@ -77,3 +104,17 @@ Cidades vizinhas, Condições previstas, Sete dias e Ajustes. Uma página ocupa 
 Distinta de painel: um painel mora *dentro* de uma página, e a mesma informação
 pode aparecer resumida num painel da Visão geral e por inteiro na sua página.
 _Avoid_: aba, tela, rota, seção
+
+**Tendência**:
+A palavra nomeia **duas coisas**, e o registro existe para que ninguém as
+confunda:
+
+- a *página* Tendência, que é a página de análise — histórico climatológico,
+  comparação com o ano anterior e as métricas avançadas de uma janela temporal;
+- o *painel* de tendência da Visão geral, que é a curva horária de temperatura
+  de **um** dia.
+
+Sem este registro, "tendência" repetiria o problema que o glossário desfez com
+"painel": um nome para coisas de escalas diferentes. Ao falar de qualquer uma
+delas, diga qual — "a página Tendência" ou "o painel de tendência".
+_Avoid_: "a tendência" sem qualificar

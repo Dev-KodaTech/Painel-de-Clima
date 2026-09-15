@@ -10,6 +10,8 @@ tornaria lenta e intermitente. Verifica presenca de campo, nunca valor: os
 valores mudam a cada hora.
 """
 
+from datetime import datetime, timezone
+
 import httpx
 import pytest
 
@@ -106,3 +108,74 @@ async def test_uma_coordenada_ainda_devolve_objeto_e_o_cliente_normaliza():
 
     assert isinstance(atuais, list)
     assert len(atuais) == 1
+
+
+@pytest.mark.contract
+@pytest.mark.anyio
+async def test_arquivo_ainda_traz_os_campos_usados():
+    """A reanalise ERA5, o segundo host da Open-Meteo."""
+    async with httpx.AsyncClient() as client:
+        arquivo = await open_meteo.buscar_arquivo(
+            client, 52.52, 13.42, "2026-09-08", "2026-09-14", passado=True
+        )
+
+    assert arquivo["daily"]["time"]
+    for campo in open_meteo.VARIAVEIS_DO_ARQUIVO:
+        assert arquivo["daily"][campo]
+
+
+@pytest.mark.contract
+@pytest.mark.anyio
+async def test_o_arquivo_ainda_cobre_o_dia_corrente():
+    """Sem lag: e o que dispensa costurar o fim do arquivo com a previsao.
+
+    Se um dia surgir um vao, a janela atual deixa de sair inteira do arquivo e
+    a costura passa a ser necessaria — por isso o caso existe aqui.
+    """
+    hoje = datetime.now(timezone.utc).date().isoformat()
+
+    async with httpx.AsyncClient() as client:
+        arquivo = await open_meteo.buscar_arquivo(
+            client, 52.52, 13.42, hoje, hoje, passado=False
+        )
+
+    assert arquivo["daily"]["time"] == [hoje]
+    assert arquivo["daily"]["temperature_2m_max"][0] is not None
+
+
+@pytest.mark.contract
+@pytest.mark.anyio
+async def test_o_arquivo_ainda_nao_serve_uv():
+    """**A armadilha que vira regra de produto.**
+
+    O arquivo aceita `uv_index_max` e responde `200` com `null` em todos os
+    dias. Se um dia a Open-Meteo passar a servir UV historico, queremos saber —
+    porque ai o UV *poderia* entrar na comparacao com o ano anterior, e a regra
+    que o mantem de fora deixa de ser verdade.
+    """
+    async with httpx.AsyncClient() as client:
+        resposta = await client.get(
+            open_meteo.ARCHIVE_URL,
+            params={
+                "latitude": 52.52,
+                "longitude": 13.42,
+                "start_date": "2026-09-08",
+                "end_date": "2026-09-10",
+                "daily": "uv_index_max",
+                "timezone": "auto",
+            },
+        )
+
+    arquivo = resposta.json()
+    assert all(valor is None for valor in arquivo["daily"]["uv_index_max"])
+
+
+@pytest.mark.contract
+@pytest.mark.anyio
+async def test_a_previsao_ainda_serve_uv():
+    """O contraponto: na previsao o mesmo campo devolve valores normais."""
+    async with httpx.AsyncClient() as client:
+        previsao = await open_meteo.buscar_uv(client, 52.52, 13.42)
+
+    assert any(valor is not None for valor in previsao["hourly"]["uv_index"])
+    assert any(valor is not None for valor in previsao["daily"]["uv_index_max"])

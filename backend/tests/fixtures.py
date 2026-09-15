@@ -335,3 +335,125 @@ def atual_de_varias(temperaturas: list[float]) -> list[dict]:
         }
         for temperatura in temperaturas
     ]
+
+
+#: Sete dias do arquivo de Berlim, gravados do servico real em 2026-09-15.
+#:
+#: Os valores sao os medidos: a chuva concentrada num dia (2,1 mm em 13/09
+#: contra 0,0 em dois outros) e as direcoes espalhadas entre 165° e 295° sao o
+#: que o dado de verdade parece.
+ARQUIVO_BERLIM = {
+    "latitude": 52.54833,
+    "longitude": 13.407822,
+    "utc_offset_seconds": 7200,
+    "timezone": "Europe/Berlin",
+    "daily_units": {
+        "time": "iso8601",
+        "temperature_2m_max": "°C",
+        "temperature_2m_min": "°C",
+        "precipitation_sum": "mm",
+        "relative_humidity_2m_mean": "%",
+        "wind_speed_10m_max": "km/h",
+        "wind_direction_10m_dominant": "°",
+    },
+    "daily": {
+        "time": [
+            "2026-09-09", "2026-09-10", "2026-09-11",
+            "2026-09-12", "2026-09-13", "2026-09-14", "2026-09-15",
+        ],
+        "temperature_2m_max": [21.2, 18.1, 20.1, 21.7, 21.3, 18.8, 19.4],
+        "temperature_2m_min": [16.0, 12.1, 10.9, 12.1, 15.0, 14.2, 13.1],
+        "precipitation_sum": [0.0, 0.1, 0.0, 0.7, 2.1, 0.2, 0.0],
+        "relative_humidity_2m_mean": [62, 64, 63, 68, 80, 73, 70],
+        "wind_speed_10m_max": [20.1, 17.5, 8.5, 12.1, 13.7, 13.5, 11.0],
+        "wind_direction_10m_dominant": [250, 275, 165, 268, 239, 295, 260],
+    },
+}
+
+#: O mesmo periodo do ano anterior. Mais frio e mais chuvoso, para que a
+#: diferenca media e o acumulado comparado sejam visiveis no teste.
+ARQUIVO_BERLIM_ANTERIOR = {
+    **ARQUIVO_BERLIM,
+    "daily": {
+        **ARQUIVO_BERLIM["daily"],
+        "time": [
+            "2025-09-09", "2025-09-10", "2025-09-11",
+            "2025-09-12", "2025-09-13", "2025-09-14", "2025-09-15",
+        ],
+        "temperature_2m_max": [17.2, 15.1, 16.1, 17.7, 16.3, 14.8, 15.4],
+        "temperature_2m_min": [12.0, 8.1, 6.9, 8.1, 11.0, 10.2, 9.1],
+        "precipitation_sum": [4.0, 6.1, 0.0, 3.7, 8.1, 1.2, 0.0],
+    },
+}
+
+#: **A armadilha do UV**, gravada do servico real: o arquivo aceita
+#: `uv_index_max`, responde `200` e devolve `null` para **todos** os dias, com
+#: `daily_units` igual a `"undefined"`. A reanalise ERA5 nao tem UV.
+#:
+#: Existe como fixture para que o teste prove que o payload nao carrega essa
+#: coluna de nulos — um consumidor desatento a plota como linha reta no zero.
+ARQUIVO_COM_UV_NULO = {
+    **ARQUIVO_BERLIM,
+    "daily_units": {**ARQUIVO_BERLIM["daily_units"], "uv_index_max": "undefined"},
+    "daily": {**ARQUIVO_BERLIM["daily"], "uv_index_max": [None] * 7},
+}
+
+#: Um arquivo que **nao cobre** o periodo pedido: `time` vazio e todas as
+#: colunas vazias, que e como a API responde um intervalo sem dado. Status
+#: `200`, nao erro.
+ARQUIVO_VAZIO = {
+    **ARQUIVO_BERLIM,
+    "daily": {chave: [] for chave in ARQUIVO_BERLIM["daily"]},
+}
+
+#: Um arquivo **incompleto**: tres dias em vez de sete, e um deles sem umidade
+#: nem vento. E o que as bordas da reanalise parecem, e a pagina deve mostrar
+#: os dias que existem.
+ARQUIVO_INCOMPLETO = {
+    **ARQUIVO_BERLIM,
+    "daily": {
+        "time": ["2026-09-13", "2026-09-14", "2026-09-15"],
+        "temperature_2m_max": [21.3, 18.8, 19.4],
+        "temperature_2m_min": [15.0, 14.2, 13.1],
+        "precipitation_sum": [2.1, 0.2, None],
+        "relative_humidity_2m_mean": [80, None, 70],
+        "wind_speed_10m_max": [13.7, None, 11.0],
+        "wind_direction_10m_dominant": [239, None, 260],
+    },
+}
+
+
+def _uv_de_sete_dias() -> dict:
+    """168 horas de UV, como a previsao as devolve.
+
+    O perfil e o de um dia real: zero de madrugada, pico ao meio-dia. O grafico
+    da pagina usa so as 24 do dia corrente, como o da tendencia do painel.
+    """
+    horas = []
+    valores = []
+    for dia in range(7):
+        data = f"2026-09-{15 + dia:02d}"
+        for hora in range(24):
+            horas.append(f"{data}T{hora:02d}:00")
+            # Uma parabola grosseira em torno das 13h, zerada a noite.
+            valores.append(round(max(0.0, 3.6 - 0.09 * (hora - 13) ** 2), 2))
+    return {"time": horas, "uv_index": valores}
+
+
+#: O UV previsto de Berlim: horas do bloco `hourly` e a maxima de cada dia.
+#:
+#: E o contraponto medido da armadilha acima — na **previsao** o mesmo campo
+#: devolve valores normais.
+UV_BERLIM = {
+    "latitude": 52.52,
+    "longitude": 13.419998,
+    "utc_offset_seconds": 7200,
+    "timezone": "Europe/Berlin",
+    "hourly_units": {"time": "iso8601", "uv_index": ""},
+    "hourly": _uv_de_sete_dias(),
+    "daily_units": {"time": "iso8601", "uv_index_max": ""},
+    "daily": {
+        "time": [f"2026-09-{15 + dia:02d}" for dia in range(7)],
+        "uv_index_max": [3.55, 2.05, 3.40, 3.25, 2.80, 3.10, 2.95],
+    },
+}

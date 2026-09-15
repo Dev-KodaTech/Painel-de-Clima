@@ -45,6 +45,9 @@ export function cidadeDosParametros(
   };
 }
 
+/** Os seis parametros que descrevem a cidade, e so eles. */
+const DA_CIDADE = ["lat", "lon", "name", "cc", "country", "admin1"] as const;
+
 /** Os parametros de uma cidade, para navegar ate ela. */
 export function parametrosDaCidade(cidade: CidadeDoPainel): URLSearchParams {
   const parametros = new URLSearchParams({
@@ -56,4 +59,29 @@ export function parametrosDaCidade(cidade: CidadeDoPainel): URLSearchParams {
   if (cidade.country) parametros.set("country", cidade.country);
   if (cidade.admin1) parametros.set("admin1", cidade.admin1);
   return parametros;
+}
+
+/**
+ * Os parametros atuais com a cidade trocada, **preservando o resto da URL**.
+ *
+ * Trocar a cidade nao pode apagar o estado da pagina em que se esta: quem
+ * escolheu "6 meses" na Tendencia e busca outra cidade quer comparar as duas no
+ * mesmo periodo, e nao voltar para sete dias. Substituir os parametros por um
+ * conjunto novo — que e o que uma `URLSearchParams` recem-criada faz — apagava
+ * a janela junto.
+ *
+ * Os seis da cidade sao removidos antes, e nao so sobrescritos: a cidade nova
+ * pode nao ter `admin1` nem `country`, e sem a limpeza ela herdaria os da
+ * anterior — Paris apareceria em "Land Berlin".
+ */
+export function trocarCidade(
+  parametros: URLSearchParams,
+  cidade: CidadeDoPainel,
+): URLSearchParams {
+  const proximos = new URLSearchParams(parametros);
+  for (const chave of DA_CIDADE) proximos.delete(chave);
+  for (const [chave, valor] of parametrosDaCidade(cidade)) {
+    proximos.set(chave, valor);
+  }
+  return proximos;
 }

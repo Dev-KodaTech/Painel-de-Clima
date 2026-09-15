@@ -157,3 +157,107 @@ export type WeatherResponse = {
   units: Units;
   attribution: string;
 };
+
+/**
+ * A janela temporal que a pagina Tendencia analisa.
+ *
+ * Uniao fechada, nao `string`: o backend a valida como `Literal` e rejeita
+ * qualquer outra coisa com 422. Aqui o mesmo conjunto impede que uma janela
+ * inventada chegue a compilar.
+ */
+export type Janela = "7d" | "30d" | "6m";
+
+/** As datas das duas janelas, prontas para exibir — a interface nao as recalcula. */
+export type Periodo = {
+  janela: Janela;
+  /** `2026-08-17`: primeiro dia da janela atual. */
+  inicio: string;
+  fim: string;
+  inicio_anterior: string;
+  fim_anterior: string;
+};
+
+/**
+ * Um dia do historico climatologico: **medicao**, nao previsao.
+ *
+ * Todo campo fora de `date` e opcional porque o arquivo tem buracos nas
+ * bordas: um dia sem uma variavel entra na serie com o campo nulo, em vez de
+ * sumir e levar os outros quatro valores junto.
+ */
+export type DiaDoHistorico = {
+  /** Data local da cidade (`2026-09-14`). */
+  date: string;
+  high: number | null;
+  low: number | null;
+  precipitation_mm: number | null;
+  /** Umidade relativa media do dia, em %. */
+  humidity: number | null;
+  wind_speed: number | null;
+  /** Direcao dominante em graus; `rumo_dominante` do resumo a traduz. */
+  wind_direction: number | null;
+};
+
+export type PontoDeUv = {
+  /** Horario de parede da cidade (`2026-09-15T13:00`), como todo timestamp. */
+  time: string;
+  uv: number;
+};
+
+/**
+ * O indice UV — **so do futuro**, e por isso um bloco irmao de `serie`.
+ *
+ * A reanalise do passado nao mede UV. A consequencia e regra de produto: o UV
+ * nunca entra na comparacao com o ano anterior e nunca cobre 30 dias ou 6
+ * meses. `nota` traz o texto que diz isso na tela.
+ */
+export type Uv = {
+  /** O dia corrente, hora a hora. Vazio quando a previsao nao o traz. */
+  horas: PontoDeUv[];
+  maximo_da_semana: number | null;
+  nota: string;
+};
+
+/**
+ * Os numeros prontos da janela, calculados no backend.
+ *
+ * Nulos, e nao zeros, quando falta o dado: uma media de lista vazia seria `0`,
+ * que se le como "fez zero grau".
+ */
+export type ResumoDoHistorico = {
+  chuva_total_mm: number | null;
+  chuva_total_anterior_mm: number | null;
+  /** Dias em que choveu: 60 mm em tres dias e 60 mm em vinte sao diferentes. */
+  dias_com_chuva: number;
+  umidade_minima: number | null;
+  umidade_media: number | null;
+  umidade_maxima: number | null;
+  vento_maximo: number | null;
+  direcao_dominante: number | null;
+  /** A mesma direcao em ponto cardeal (`NO`), ja pronta para ler. */
+  rumo_dominante: string | null;
+  temperatura_media: number | null;
+  temperatura_media_anterior: number | null;
+  /** Positivo = a janela atual esta mais quente que o mesmo periodo de 2025. */
+  diferenca_media: number | null;
+};
+
+/** As unidades do historico. `uv` e vazia: o indice nao tem unidade. */
+export type UnitsDoHistorico = {
+  temperature: string;
+  precipitation: string;
+  wind_speed: string;
+  humidity: string;
+  uv: string;
+};
+
+/** O historico climatologico de uma cidade. Um bloco por parte da pagina. */
+export type TrendsResponse = {
+  periodo: Periodo;
+  serie: DiaDoHistorico[];
+  /** Vazia quando o arquivo nao cobre o ano anterior — normal, nao erro. */
+  comparacao: DiaDoHistorico[];
+  uv: Uv;
+  resumo: ResumoDoHistorico;
+  units: UnitsDoHistorico;
+  attribution: string;
+};

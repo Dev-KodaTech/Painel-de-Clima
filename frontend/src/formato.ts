@@ -127,3 +127,102 @@ export function precipitacao(valor: number, unidade: string): string {
 export function distancia(valor: number, unidade: string): string {
   return `${Math.round(valor).toLocaleString("pt-BR")} ${unidade}`;
 }
+
+/**
+ * "17 ago — 15 set": o intervalo que a janela temporal cobre.
+ *
+ * Existe para que a pessoa saiba que "30 dias" termina hoje e nao numa data
+ * qualquer. As duas datas vem prontas do payload — o frontend nao recalcula
+ * janela —, e aqui so se formatam.
+ */
+export function intervalo(inicio: string, fim: string): string {
+  return `${dataCurta(inicio)} — ${dataCurta(fim)}`;
+}
+
+/** "2025" a partir de `2025-09-14`: rotula a serie do ano anterior. */
+export function ano(data: string): string {
+  return data.slice(0, 4);
+}
+
+/**
+ * "60,3 mm": a chuva acumulada de uma janela inteira.
+ *
+ * Distinta de `precipitacao`, que e a chuva de **um dia** e omite a casa
+ * decimal no dia seco. Aqui a casa fica sempre: um acumulado de 0,0 mm num mes
+ * e uma informacao — significa que nao choveu o mes todo —, nao ruido.
+ */
+export function acumulado(valor: number, unidade: string): string {
+  return `${valor.toFixed(1).replace(".", ",")} ${unidade}`;
+}
+
+/** "71%" / "13,5 km/h": um numero de resumo com a unidade vinda do payload. */
+export function medida(valor: number, unidade: string, casas = 0): string {
+  const numero = valor.toFixed(casas).replace(".", ",");
+  // `%` cola no numero; `km/h` pede espaco. A unidade vazia (o indice UV) nao
+  // deixa espaco sobrando no fim.
+  if (unidade === "") return numero;
+  if (unidade === "%") return `${numero}%`;
+  return `${numero} ${unidade}`;
+}
+
+/**
+ * "+2,4 °C" / "−1,1 °C": a diferenca entre os dois periodos.
+ *
+ * O sinal e explicito nos dois lados: "2,4" sozinho nao diz se este setembro
+ * esta mais quente ou mais frio que o passado, que e a pergunta inteira do
+ * grafico. O menos e o sinal tipografico (−), nao o hifen.
+ */
+export function diferenca(valor: number, unidade: string): string {
+  const sinal = valor > 0 ? "+" : valor < 0 ? "−" : "";
+  return `${sinal}${Math.abs(valor).toFixed(1).replace(".", ",")} ${unidade}`;
+}
+
+/**
+ * As faixas do indice UV, como a OMS as define.
+ *
+ * O numero sozinho nao diz nada a quem nao o consulta todo dia: 3 e 8 sao
+ * ambos "algum sol" para quem le, e sao "moderado" e "muito alto" para quem
+ * sabe. A faixa e o que torna o grafico acionavel.
+ */
+const FAIXAS_DE_UV = [
+  { ate: 2.9, nome: "Baixo" },
+  { ate: 5.9, nome: "Moderado" },
+  { ate: 7.9, nome: "Alto" },
+  { ate: 10.9, nome: "Muito alto" },
+] as const;
+
+/** "Moderado" a partir de 4,2. Acima de 11 nao ha teto: e extremo. */
+export function faixaDeUv(indice: number): string {
+  return FAIXAS_DE_UV.find((faixa) => indice <= faixa.ate)?.nome ?? "Extremo";
+}
+
+/**
+ * "noroeste (NO)": a direcao dominante do vento, por extenso e abreviada.
+ *
+ * O rumo abreviado vem do backend, que faz a media **vetorial** — a aritmetica
+ * de 350° e 10° daria sul. Aqui so se traduz a sigla para a palavra, porque
+ * "noroeste" se le e "NO" se reconhece; mostrar os dois serve a quem le de um
+ * jeito e a quem le do outro.
+ */
+const RUMOS_POR_EXTENSO: Record<string, string> = {
+  N: "norte",
+  NNE: "norte-nordeste",
+  NE: "nordeste",
+  ENE: "leste-nordeste",
+  E: "leste",
+  ESE: "leste-sudeste",
+  SE: "sudeste",
+  SSE: "sul-sudeste",
+  S: "sul",
+  SSO: "sul-sudoeste",
+  SO: "sudoeste",
+  OSO: "oeste-sudoeste",
+  O: "oeste",
+  ONO: "oeste-noroeste",
+  NO: "noroeste",
+  NNO: "norte-noroeste",
+};
+
+export function rumoPorExtenso(rumo: string): string {
+  return RUMOS_POR_EXTENSO[rumo] ?? rumo;
+}

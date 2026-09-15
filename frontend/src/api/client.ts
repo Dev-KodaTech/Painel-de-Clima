@@ -9,6 +9,8 @@ import type {
   Cidade,
   CidadeDoPainel,
   CidadesResponse,
+  Janela,
+  TrendsResponse,
   WeatherResponse,
 } from "./types";
 
@@ -97,4 +99,28 @@ export async function buscarPainel(
   if (cidade.admin1) params.set("admin1", cidade.admin1);
 
   return pegar<WeatherResponse>(`/api/weather?${params}`, sinal);
+}
+
+/**
+ * O historico climatologico de uma cidade, para uma janela temporal.
+ *
+ * Endpoint proprio, separado de `/api/weather`: as outras cinco paginas nao
+ * leem nada disto, e o custo do arquivo nao deve recair sobre quem so abriu a
+ * Visao geral.
+ *
+ * So a coordenada viaja — nada aqui exibe o nome da cidade, que o cabecalho ja
+ * tem do painel.
+ */
+export async function buscarHistorico(
+  cidade: Pick<CidadeDoPainel, "latitude" | "longitude">,
+  janela: Janela,
+  sinal?: AbortSignal,
+): Promise<TrendsResponse> {
+  const params = new URLSearchParams({
+    latitude: String(cidade.latitude),
+    longitude: String(cidade.longitude),
+    janela,
+  });
+
+  return pegar<TrendsResponse>(`/api/trends?${params}`, sinal);
 }
