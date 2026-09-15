@@ -16,6 +16,7 @@ import type { ComponentType } from "react";
 import { Route, Routes } from "react-router";
 import { Shell } from "./components/Shell";
 import { PAGINAS, ehRaiz } from "./navegacao";
+import { CidadesVizinhas } from "./paginas/CidadesVizinhas";
 import { NaoEncontrada } from "./paginas/NaoEncontrada";
 import { PaginaVazia } from "./paginas/PaginaVazia";
 import { Tendencia } from "./paginas/Tendencia";
@@ -24,6 +25,7 @@ import { VisaoGeral } from "./paginas/VisaoGeral";
 /** As paginas que ja tem componente proprio; o resto cai na `PaginaVazia`. */
 const CONSTRUIDAS: Record<string, ComponentType> = {
   "/tendencia": Tendencia,
+  "/vizinhas": CidadesVizinhas,
 };
 
 export default function App() {

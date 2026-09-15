@@ -29,6 +29,37 @@ export function mensagemDeErro(falha: unknown, padrao: string): string {
 const MSG_GENERICA =
   "Nao foi possivel falar com o servico. Verifique sua conexao e tente de novo.";
 
+/**
+ * O texto de um `detail`, que **nem sempre e texto**.
+ *
+ * Os erros que o backend levanta de proposito mandam uma frase pronta em
+ * `detail` — "a API externa esta fora do ar". Mas o 422 nao e levantado por
+ * ele: quem o monta e o FastAPI, e ali `detail` e uma **lista de objetos** de
+ * validacao (`[{type, loc, msg, ...}]`).
+ *
+ * Tipar o campo como `string` nao o tornava uma: a lista chegava, era truthy,
+ * passava pelo `??` e ia inteira para a tela como
+ * `[object Object],[object Object]` — que e o que a pessoa via ao abrir um link
+ * com a coordenada corrompida. Dai o parametro ser `unknown`: a forma do
+ * `detail` e decidida aqui, olhando o valor, e nao por uma anotacao que o JSON
+ * nao e obrigado a respeitar.
+ *
+ * A lista vira a primeira `msg`, e nao todas concatenadas: duas coordenadas
+ * invalidas produzem duas entradas quase identicas, e a segunda nao acrescenta
+ * nada a quem le.
+ */
+function textoDoDetalhe(detalhe: unknown): string | undefined {
+  if (typeof detalhe === "string") return detalhe;
+  if (Array.isArray(detalhe)) {
+    const primeira = detalhe.find(
+      (item): item is { msg: string } =>
+        typeof (item as { msg?: unknown })?.msg === "string",
+    );
+    return primeira?.msg;
+  }
+  return undefined;
+}
+
 async function pegar<T>(caminho: string, sinal?: AbortSignal): Promise<T> {
   let response: Response;
   try {
@@ -44,7 +75,7 @@ async function pegar<T>(caminho: string, sinal?: AbortSignal): Promise<T> {
     // externa fora do ar, por exemplo).
     const detalhe = await response
       .json()
-      .then((corpo: { detail?: string }) => corpo.detail)
+      .then((corpo: { detail?: unknown }) => textoDoDetalhe(corpo.detail))
       .catch(() => undefined);
     throw new ErroDoPainel(detalhe ?? MSG_GENERICA);
   }

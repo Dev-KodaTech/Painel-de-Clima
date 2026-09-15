@@ -53,7 +53,7 @@ export const PAGINAS: Pagina[] = [
     caminho: "/vizinhas",
     titulo: "Cidades vizinhas",
     oQueVem:
-      "As cidades vizinhas com distancia e temperatura, a lista inteira que o painel da Visao geral trunca. Ainda nao construida.",
+      "As cidades vizinhas e a cidade escolhida numa tabela comparativa, com distancia, condicao e temperatura lado a lado.",
     Icone: IconePino,
   },
   {
