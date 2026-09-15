@@ -5,7 +5,12 @@
  * nenhum componente precisa interpretar status HTTP.
  */
 
-import type { Cidade, CidadesResponse, WeatherResponse } from "./types";
+import type {
+  Cidade,
+  CidadeDoPainel,
+  CidadesResponse,
+  WeatherResponse,
+} from "./types";
 
 export class ErroDoPainel extends Error {}
 
@@ -79,7 +84,7 @@ export async function buscarCidadePorCoordenada(
 
 /** O painel de uma cidade ja escolhida. */
 export async function buscarPainel(
-  cidade: Cidade,
+  cidade: CidadeDoPainel,
   sinal?: AbortSignal,
 ): Promise<WeatherResponse> {
   const params = new URLSearchParams({

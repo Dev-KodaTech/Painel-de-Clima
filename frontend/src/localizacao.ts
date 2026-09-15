@@ -42,6 +42,28 @@ export function temGeolocalizacao(): boolean {
 }
 
 /**
+ * Se a permissao de localizacao **ja foi concedida** numa visita anterior.
+ *
+ * Existe para que o painel possa abrir na cidade da pessoa sem disparar
+ * pop-up algum: `permissions.query` apenas *consulta* o estado guardado pelo
+ * browser, e so quando ele responde `granted` e que `pedirLocalizacao` e
+ * chamada. A regra de nunca pedir no carregamento continua inteira.
+ *
+ * Responde `false` a qualquer duvida — browser sem a API, consulta que lanca,
+ * estado `prompt` ou `denied`. O degrau seguinte (a ultima cidade) assume, e o
+ * silencio e o comportamento correto.
+ */
+export async function permissaoConcedida(): Promise<boolean> {
+  if (!temGeolocalizacao() || !navigator.permissions?.query) return false;
+  try {
+    const status = await navigator.permissions.query({ name: "geolocation" });
+    return status.state === "granted";
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Pede a coordenada ao navegador.
  *
  * Chamado **apenas a partir de um clique**, nunca no carregamento: o pedido

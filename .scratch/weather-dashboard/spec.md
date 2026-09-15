@@ -159,6 +159,94 @@ Acima de 50 km, **não sugerir nada**: cair no estado inicial com o campo vazio.
 
 O fluxo é acionado **por um botão**, nunca no carregamento: pedido automático no primeiro acesso é negado por reflexo, e o browser lembra a negação — queima a única chance. Obtida a coordenada, o frontend resolve a cidade e **carrega o painel direto**, sem pedir confirmação: o usuário já pediu ao clicar, e o nome fica visível no campo de busca para correção.
 
+### Cidade inicial
+
+O painel abre já preenchido quando dá para saber qual cidade mostrar. Decidido
+depois da versão inicial desta spec. ([ticket 29](issues/29-cidade-inicial-e-tema.md))
+
+**A regra de não pedir localização no carregamento continua valendo por
+inteiro.** O que muda é que passamos a *perguntar ao browser se a permissão já
+foi concedida*, com `navigator.permissions.query`. Só nesse caso
+`getCurrentPosition` é chamado — nenhum pop-up novo é disparado, nunca. Conceder
+a permissão é a pessoa dizendo "use minha localização"; honrá-la não é
+inferência, é cumprir uma instrução que ela já deu.
+
+Precedência, e é por isso que a detectada ganha da lembrada:
+
+| Ordem | Origem | Quando |
+|---|---|---|
+| 1 | **cidade detectada** | permissão já concedida e a coordenada resolve numa cidade |
+| 2 | **última cidade** | qualquer cidade que o painel carregou antes |
+| 3 | estado vazio | nem uma nem outra |
+
+Toda falha cai para o degrau seguinte **em silêncio**: timeout, coordenada a
+mais de 50 km de qualquer cidade cadastrada, ou browser sem Permissions API.
+Coerente com a regra que já existia — negar não é falha e não merece mensagem.
+
+A cidade inicial entra na URL com `replace`. O ADR 0002 continua valendo (a
+cidade mora na URL e em nenhum outro lugar), e o `replace` evita que entrar no
+app deixe a pessoa a um clique de Voltar de sair dele.
+
+Existe um estado a mais, **decidindo**, que não mostra nada enquanto o app não
+sabe se vai carregar algo. Sem ele o primeiro quadro seria "Busque uma cidade",
+logo substituído pelo painel aparecendo sozinho.
+
+O navegador devolve **coordenada**, nunca cidade: quem resolve é
+`cidade_na_coordenada`, sobre o dataset local. Daí o termo ser *cidade
+detectada por nós*, e não *pelo navegador* — ver `CONTEXT.md`.
+
+### Tema
+
+Modo escuro entra, revertendo o *Out of Scope*. O motivo anterior — "dobraria o
+trabalho de estilo dos nove painéis" — era estimativa feita antes de existir
+código, e não sobrevive ao que o código virou.
+
+Medido: 25× `text-ink-2`, 17× `text-ink-3`, 12× `shadow-card`, 10× `bg-card`, e
+os SVGs dos gráficos já usam `var(--color-brand)` e `var(--color-line)`. Os 5
+`text-white` do projeto: 4 estão sobre `bg-brand`, onde continuam brancos.
+E o Tailwind v4 emite `.bg-card { background-color: var(--color-card) }` — a
+utilitária aponta para a variável. **Um segundo bloco de variáveis vira o tema
+inteiro praticamente sem tocar em componente.**
+
+"Praticamente", e não "sem tocar em nenhum", porque a implementação achou uma
+exceção. O azul tem dois papéis: fundo (com branco por cima) e texto pequeno
+sobre cartão. No claro os dois dão a mesma razão de contraste, 4,44, e um token
+só serve aos dois. Sobre cartão escuro eles divergem: `#3b6ef5` continua certo
+como fundo, mas cai para 3,71 como texto. Daí um segundo token,
+`--color-brand-text`, e a única mudança de componente do ticket —
+`CardSol` passou de `text-brand` para `text-brand-text`. A regra que separa os
+dois é *texto contra ícone*: onde o azul desenha ícone ou linha de gráfico,
+3,71 basta e `brand` fica.
+
+Um bloco `:root[data-tema="escuro"]` redefine as variáveis do `@theme`. O
+toggle tem dois estados, como a pílula de dois segmentos do design: o inicial
+vem de `prefers-color-scheme`, e o primeiro clique passa a mandar para sempre —
+não há como voltar a "seguir o sistema" sem limpar o armazenamento, o que é o
+comportamento esperado de uma pílula de dois segmentos.
+
+O `data-tema` é carimbado por um **script inline no `index.html`**, antes do
+primeiro paint. Com `useEffect`, quem usa escuro veria a página branca por
+100–300 ms em toda visita. O custo é um literal de chave duplicado entre o HTML
+e o código do toggle, que precisam concordar.
+
+No escuro a sombra deixa de separar cartão de fundo — sombra é invisível sobre
+escuro. O cartão fica mais claro que o fundo **e** ganha uma borda fina, que
+aproveita o `shadow-card` já presente em todo cartão em vez de acrescentar
+`border` a cada um.
+
+O caminho previsto era redefinir `--shadow-card`, e ele **não funciona**: ao
+contrário das cores, o Tailwind v4 *assa* o valor da sombra na utilitária em
+tempo de build — `.shadow-card` compila para `--tw-shadow: 0 8px 24px -12px …`,
+sem referência nenhuma à variável de tema. Verificado no CSS gerado. O que
+funciona é sobrescrever `--tw-shadow` num `:root[data-tema="escuro"]
+.shadow-card`, e é isso que está no código. Fica registrado porque o preço é
+depender de um nome interno do Tailwind, que uma major pode renomear: se um dia
+os cartões escuros perderem o contorno, é aí que se olha.
+
+A vigiar: `overcast-day.svg` usa cinzas `#6b7280`–`#9ca3af` e fica de contraste
+baixo sobre cartão escuro. Os demais Meteocons têm nuvens quase brancas e sol
+âmbar, que sobrevivem aos dois temas.
+
 ### Armadilhas de formato da API externa
 
 Três detalhes que quebram a integração em silêncio se ignorados: ([ticket 01](issues/01-campos-open-meteo.md))
@@ -209,6 +297,79 @@ Tipografia **Poppins** (Google Fonts, geométrica arredondada como no design; al
 
 O eixo do gráfico horário usa rótulos esparsos — sete marcas, não 24, que não cabem na largura disponível.
 
+### Navegação
+
+A barra lateral do design vira navegação de verdade: **seis páginas**, cada uma
+com URL própria. Decidido depois da versão inicial desta spec, que as deixava
+decorativas por existir uma página só — o item saiu do *Out of Scope*.
+([ticket 28](issues/28-navegacao.md))
+
+Nenhuma das seis é inventada. Cada uma corresponde a um painel que já existe e
+que hoje aparece truncado num cartão do grid:
+
+| Rota | Página | Dado |
+|---|---|---|
+| `/` | Visão geral | o grid de nove painéis |
+| `/tendencia` | Tendência | `hourly` + precipitação em tela cheia |
+| `/vizinhas` | Cidades vizinhas | `nearby` completo |
+| `/condicoes` | Condições previstas | `alerts` sem o limite de dois cards |
+| `/semana` | Sete dias | `daily` expandido |
+| `/ajustes` | Ajustes | nada ainda |
+
+Caminhos em português: a fronteira de idioma do projeto cai na API, não na
+interface, e URL é interface. Não existe `/painel` — depois que *painel* passou
+a nomear um cartão do grid (ver `CONTEXT.md`), uma rota com esse nome recriaria
+a ambiguidade; por isso a Visão geral fica na raiz.
+
+`react-router` 8.x, modo declarativo. Uma **rota de layout** segura barra
+lateral, cabeçalho, busca e a requisição, e renderiza as páginas por `Outlet`:
+navegar não refaz a requisição.
+
+A cidade escolhida mora nos **parâmetros de busca da URL**, não em `useState` —
+ver [ADR 0002](../../docs/adr/0002-cidade-na-url.md). São seis parâmetros
+(`lat`, `lon`, `name`, `cc`, `country`, `admin1`) porque `/api/weather` exige
+`country_code` e usa `country` e `admin1` para montar o `location`; carregar
+menos devolve 422 ou um cabeçalho sem procedência.
+
+URL desconhecida cai numa página de erro mínima, nunca em redirecionamento
+silencioso: agora que os links são compartilháveis, um link quebrado que
+aterrissa na Visão geral faz o usuário achar que chegou no lugar certo.
+
+Os seis ícones são mudos — sem rótulo de texto, que a faixa de 64 px não
+comporta. Levam `aria-label` e `title`. A marca no topo linka para `/` sem
+carregar destaque de ativo, que pertence ao ícone de grid.
+
+A barra é um cartão flutuante `sticky` com altura da viewport, dentro do
+container de 1180 px. A altura fixa não é estética: as cinco páginas vazias
+exibiriam uma barra atrofiada de 80 px.
+
+### Cromo sem função
+
+Envelope, sino, avatar e o ícone de saída da barra lateral não têm
+funcionalidade por trás. Vão como **decoração inerte** (`aria-hidden`), nunca
+como `<button>`: um botão que aceita o clique e não responde promete o que não
+cumpre, e para um leitor de tela ele anuncia uma ação inexistente.
+
+O toggle sol/lua **saiu desta lista**: com o tema escuro implementado, ele é um
+`<button>` de verdade, com rótulo dizendo a ação que executa.
+
+O avatar usa silhueta neutra e **nenhum nome** — o design traz "Winter Potter",
+que seria um usuário logado fictício numa aplicação sem login. Haverá cadastro
+depois; até lá o lugar fica guardado, e é por isso que o ícone de saída também
+permanece: quando o cadastro chegar, troca-se um `div` por um `button` em vez de
+redesenhar o rodapé da barra.
+
+A busca aparece nas cinco páginas de clima e **não em Ajustes**, a única que não
+é sobre uma cidade. O cabeçalho tem altura fixa para o conteúdo não pular ao
+navegar. Uma busca que aceita o clique e não mostra resultado teria o mesmo
+defeito do botão morto.
+
+A data do cabeçalho é a de **hoje na cidade consultada** (história 10), e por
+isso só existe depois que uma cidade carrega. Antes disso não é exibida:
+mostrar a data local do browser e trocá-la quando a cidade chega faria a data
+mudar de significado em silêncio — quem está em São Paulo consultando Tóquio não
+teria como saber qual das duas está lendo.
+
 ### Desvios deliberados do design de referência
 
 Quatro, todos com justificativa:
@@ -218,7 +379,7 @@ Quatro, todos com justificativa:
 3. **O mapa ilustrado de regiões vira tabela de cidades próximas** com distância. O mapa pressupõe um país fixo, o que é incompatível com buscar qualquer cidade do mundo. A tabela já existe no design, no canto inferior direito; perde-se a ilustração.
 4. **Um rodapé fino de atribuição** que o design não tem, exigido pelas licenças CC-BY 4.0.
 
-O toggle sol/lua do cabeçalho permanece **decorativo** (ver Fora de Escopo).
+O toggle sol/lua do cabeçalho **funciona** — ver *Tema*. Foi decorativo até o ticket 29.
 
 ## Testing Decisions
 
@@ -272,15 +433,13 @@ Uma exceção, se a implementação revelar dor: a formatação de datas e horas
 
 ## Out of Scope
 
-- **Modo escuro.** O toggle sol/lua do cabeçalho permanece decorativo. Dobraria o trabalho de estilo dos nove painéis, e o design de referência só apresenta o tema claro.
 - **Alertas meteorológicos oficiais.** Exigiriam um segundo provedor com chave de API (NWS/NOAA, Meteoalarm, Weatherbit), contra a restrição de não usar chave.
 - **Calor e frio extremos** entre as condições derivadas. Precisam de normais climatológicas ou percentil histórico.
 - **Responsividade abaixo de ~1100 px.** O design é desktop, e cada uma das três faixas precisaria de decisão própria de empilhamento.
-- **Persistência.** Última cidade buscada, favoritos, histórico. O design mostra uma busca única.
+- **Persistência além de duas exceções.** Favoritos e histórico ficam de fora. A última cidade e a escolha de tema *são* guardadas — ver *Cidade inicial* e *Tema*. ([ticket 29](issues/29-cidade-inicial-e-tema.md))
 - **Atualização automática** enquanto a página está aberta.
 - **Testes ponta a ponta, de carga e de regressão visual.** Uma página com dois endpoints não os justifica.
 - **Deploy, Docker e CI.** Nada nas decisões acima impede contêinerizar depois.
-- **Navegação.** A barra lateral tem sete ícones no design, mas existe uma página só; permanecem decorativos.
 
 ## Further Notes
 

@@ -10,6 +10,13 @@
   --color-accent: #f5a524; /* laranja-ambar da temperatura grande */
   --color-brand: #3b6ef5; /* azul-royal: pilula, dia ativo, barras, linha */
   --color-brand-soft: #e8eefe; /* fundo do icone ativo da sidebar */
+
+  /* O azul quando ele e **texto pequeno sobre cartao**, nao fundo.
+     No claro os dois papeis coincidem: sobre cartao branco, `brand` sobre o
+     fundo e branco sobre `brand` dao exatamente a mesma razao de contraste
+     (4,44). Sobre cartao escuro elas divergem, e nenhum azul unico serve aos
+     dois — dai o token existir. Ver o bloco do tema escuro. */
+  --color-brand-text: #3b6ef5;
   --color-line: #eef0f6; /* grades e divisorias de tabela */
 
   /* A altura util dos paineis da faixa 3. Os dois — precipitacao e condicoes
@@ -22,6 +29,61 @@
   --shadow-card: 0 8px 24px -12px rgb(31 36 48 / 0.18);
 
   --font-sans: Poppins, system-ui, sans-serif;
+}
+
+/*
+ * O tema escuro.
+ *
+ * So variaveis: o Tailwind v4 emite `.bg-card { background-color:
+ * var(--color-card) }`, entao redefini-las aqui vira o tema inteiro sem tocar
+ * em componente nenhum e sem uma unica variante `dark:`.
+ *
+ * O atributo e carimbado pelo script inline do `index.html`, antes do primeiro
+ * paint.
+ */
+:root[data-tema="escuro"] {
+  --color-page: #12151c; /* o mais escuro: o fundo */
+  --color-card: #1b1f29; /* um degrau acima, como o branco sobre a lavanda */
+  --color-ink: #e9ebf1;
+  --color-ink-2: #a3aab9;
+  --color-ink-3: #6e7585;
+  --color-accent: #f7b74a; /* ambar um tom acima: #f5a524 apaga no escuro */
+
+  /* `brand` fica **igual ao claro**, e nao mais claro como o resto da paleta,
+     porque o que decide aqui e o texto branco por cima dele — a coluna de hoje
+     na semana, em 10 px. Em #3b6ef5 o branco da 4,44, a mesma razao do tema
+     claro; clareando o azul para 5b86f7 a razao cai para 3,39 e o texto
+     pequeno sofre. Sobre o cartao escuro ele fica em 3,71, suficiente para o
+     que ele desenha ali: linha do grafico e icones. */
+  --color-brand: #3b6ef5;
+  /* Ja como texto pequeno sobre cartao escuro, 3,71 nao basta. Este clareia
+     ate 5,68 e e usado so onde o azul e texto. */
+  --color-brand-text: #6d94f8;
+  --color-brand-soft: #232b40;
+  /* Mais claro que o resto da paleta porque faz dois trabalhos: a grade dos
+     graficos e o aro que separa cartao de fundo. Em #2a2f3c o aro ficava em
+     1,23 sobre o cartao — presente no CSS e invisivel na tela. */
+  --color-line: #3a4155;
+}
+
+/*
+ * A separacao entre cartao e fundo no escuro.
+ *
+ * Sombra sobre escuro e invisivel, entao quem separa passa a ser um aro de 1px.
+ * Ele **nao** pode entrar redefinindo `--shadow-card`: ao contrario das cores,
+ * o Tailwind v4 *assa* o valor da sombra na utilitaria em tempo de build —
+ * `.shadow-card` compila para `--tw-shadow: 0 8px 24px -12px …`, sem referencia
+ * a variavel de tema. Verificado no CSS gerado.
+ *
+ * Sobrescrever `--tw-shadow` aqui mantem a promessa de nao tocar em componente
+ * nenhum: os doze `shadow-card` espalhados pelos cartoes passam a desenhar o
+ * aro sozinhos. O preco e depender de um nome interno do Tailwind, que uma
+ * major pode renomear — se um dia os cartoes escuros perderem o contorno, e
+ * aqui que se olha.
+ */
+:root[data-tema="escuro"] .shadow-card {
+  --tw-shadow:
+    0 0 0 1px var(--color-line), 0 10px 28px -14px rgb(0 0 0 / 0.75);
 }
 
 body {

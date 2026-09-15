@@ -5,6 +5,37 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Painel de Clima</title>
+    <!--
+      Carimba o tema ANTES do primeiro paint.
+
+      Precisa ser inline e aqui: se o React aplicasse o tema num efeito, quem
+      escolheu escuro veria a pagina branca por 100-300 ms em toda visita.
+
+      A chave esta duplicada em `src/tema.ts` (CHAVE_TEMA) e as duas precisam
+      concordar. Este script roda antes de qualquer modulo, entao nao ha como
+      importa-la — e o preco de nao piscar.
+
+      A precedencia mora so aqui: escolha guardada, senao o que o sistema pede.
+      `temaAtual()` le o resultado do DOM em vez de recalcular.
+    -->
+    <script>
+      (function () {
+        var tema;
+        try {
+          tema = localStorage.getItem("painel-de-clima:tema");
+        } catch (e) {
+          // Aba anonima ou armazenamento bloqueado: segue para o sistema.
+        }
+        if (tema !== "claro" && tema !== "escuro") {
+          tema =
+            window.matchMedia &&
+            window.matchMedia("(prefers-color-scheme: dark)").matches
+              ? "escuro"
+              : "claro";
+        }
+        document.documentElement.dataset.tema = tema;
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

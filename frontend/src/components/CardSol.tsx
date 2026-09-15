@@ -45,7 +45,7 @@ export function CardSol({ sun }: Props) {
             />
             <div>
               <dt className="text-[10px] text-ink-2">{rotulo}</dt>
-              <dd className="text-base font-semibold text-brand">
+              <dd className="text-base font-semibold text-brand-text">
                 {horaDoDia(sun[chave])}
               </dd>
             </div>

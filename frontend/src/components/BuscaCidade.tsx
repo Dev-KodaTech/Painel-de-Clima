@@ -45,6 +45,14 @@ function Alvo({ animado }: { animado: boolean }) {
 }
 
 type Props = {
+  /**
+   * O nome da cidade atualmente carregada, ou `null` se nenhuma.
+   *
+   * Existe porque a cidade mora na URL: um link colado ou o botao Voltar
+   * carregam um painel sem que ninguem tenha digitado nada, e o campo ficaria
+   * vazio ao lado de um painel cheio.
+   */
+  nomeDaCidade: string | null;
   onEscolher: (cidade: Cidade) => void;
 };
 
@@ -70,8 +78,20 @@ type Localizando =
   | { tipo: "buscando" }
   | { tipo: "aviso"; mensagem: string };
 
-export function BuscaCidade({ onEscolher }: Props) {
-  const [termo, setTermo] = useState("");
+export function BuscaCidade({ nomeDaCidade, onEscolher }: Props) {
+  // Valor **inicial**, nao sincronizado: o `Cabecalho` remonta este componente
+  // quando a cidade carregada muda (ver o `key` la). Remontar e o que faz o
+  // campo seguir a URL sem um efeito que sobrescreva o que se esta digitando.
+  const [termo, setTermo] = useState(nomeDaCidade ?? "");
+  /**
+   * O que de fato se consulta — separado do texto exibido no campo.
+   *
+   * Sao coisas diferentes: o campo tambem e preenchido por *escolher* uma
+   * candidata e por uma cidade que veio da URL, e nenhum dos dois casos deve
+   * abrir o dropdown. Com um estado so, escolher "Berlin" reabria a lista de
+   * candidatas 300 ms depois, porque o texto novo disparava busca nova.
+   */
+  const [consulta, setConsulta] = useState("");
   const [resultado, setResultado] = useState<Resultado | null>(null);
   const [localizando, setLocalizando] = useState<Localizando>({
     tipo: "repouso",
@@ -84,7 +104,7 @@ export function BuscaCidade({ onEscolher }: Props) {
   const [mostraBotao] = useState(temGeolocalizacao);
 
   useEffect(() => {
-    const q = termo.trim();
+    const q = consulta.trim();
     // Menos de duas letras nao vale uma requisicao: a busca e fuzzy e
     // devolveria ruido.
     if (q.length < 2) return;
@@ -106,11 +126,12 @@ export function BuscaCidade({ onEscolher }: Props) {
       controller.abort();
       clearTimeout(timer);
     };
-  }, [termo]);
+  }, [consulta]);
 
   /** Digitar e o evento que abre a busca; o efeito apenas a resolve. */
   function digitar(texto: string) {
     setTermo(texto);
+    setConsulta(texto);
     setResultado(texto.trim().length < 2 ? null : { tipo: "buscando" });
     // Digitar dispensa o aviso de localizacao: ele existe para dizer "use a
     // busca", e quem esta digitando ja o fez. Sem isto o aviso ficaria para
@@ -133,6 +154,9 @@ export function BuscaCidade({ onEscolher }: Props) {
   function escolher(cidade: Cidade) {
     onEscolher(cidade);
     setTermo(cidade.name);
+    // Escolher encerra a busca: sem zerar a consulta, o nome recem-escrito no
+    // campo seria consultado de novo e o dropdown reabriria sozinho.
+    setConsulta("");
     setResultado(null);
   }
 

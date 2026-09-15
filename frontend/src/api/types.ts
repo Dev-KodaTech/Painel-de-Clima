@@ -20,6 +20,18 @@ export type Cidade = {
   timezone: string;
 };
 
+/**
+ * O que `/api/weather` precisa saber de uma cidade — menos que uma `Cidade`.
+ *
+ * Existe porque a cidade escolhida viaja pela URL, e a URL nao carrega
+ * `id`, `population` nem `timezone`: nenhum deles vai na requisicao do painel.
+ * Uma `Cidade` inteira continua servindo, por ser mais larga que isto.
+ */
+export type CidadeDoPainel = Pick<
+  Cidade,
+  "latitude" | "longitude" | "name" | "country" | "country_code" | "admin1"
+>;
+
 export type CidadesResponse = {
   results: Cidade[];
 };

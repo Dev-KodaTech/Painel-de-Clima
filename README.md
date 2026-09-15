@@ -1,9 +1,9 @@
 # Painel de Clima
 
-Painel único que mostra o clima de uma cidade: condições atuais, tendência
-horária, previsão de sete dias, sol, precipitação, condições previstas e
-cidades vizinhas. Os dados vêm da Open-Meteo, sempre através do backend
-próprio — o frontend nunca fala com a API externa.
+Mostra o clima de uma cidade: condições atuais, tendência horária, previsão de
+sete dias, sol, precipitação, condições previstas e cidades vizinhas. Os dados
+vêm da Open-Meteo, sempre através do backend próprio — o frontend nunca fala
+com a API externa.
 
 Spec: [`.scratch/weather-dashboard/spec.md`](.scratch/weather-dashboard/spec.md)
 
@@ -64,6 +64,68 @@ Três detalhes do contrato que surpreendem:
 - `nearby[].distance_km` é **obrigatório**. Numa cidade isolada as vizinhas
   estão a milhares de quilômetros, e "Auckland — 4.094 km" é honesto onde
   "Auckland" sozinha sugeriria uma vizinhança que não existe.
+
+## Páginas
+
+Seis, alcançáveis pela barra lateral. Só a **Visão geral** está construída; as
+outras cinco existem como rota e mostram o que vai entrar nelas.
+
+| Rota | Página |
+|---|---|
+| `/` | Visão geral — o grid de nove painéis |
+| `/tendencia` | Tendência |
+| `/vizinhas` | Cidades vizinhas |
+| `/condicoes` | Condições previstas |
+| `/semana` | Sete dias |
+| `/ajustes` | Ajustes |
+
+**A cidade escolhida mora na URL**, não em estado de componente — ver
+[ADR 0002](docs/adr/0002-cidade-na-url.md). São seis parâmetros
+(`lat`, `lon`, `name`, `cc`, `country`, `admin1`) porque `/api/weather` exige
+`country_code` e usa os outros para montar o `location`. Consequências:
+`/vizinhas?lat=52.52&lon=13.41&name=Berlin&cc=DE` é um link que abre a mesma
+cidade na mesma página, e trocar de página não refaz a requisição.
+
+Em produção o servidor precisa devolver `index.html` para qualquer caminho, ou
+recarregar em `/vizinhas` dá 404. O dev server e o `vite preview` já fazem
+isso; deploy continua fora de escopo.
+
+Toggle sol/lua, envelope, sino, avatar e o ícone de saída da barra lateral são
+**decoração inerte**, não botões: não há modo escuro nem cadastro, e um botão
+que aceita o clique sem responder promete o que não cumpre.
+
+## Cidade inicial e tema
+
+O painel abre já preenchido quando dá para saber qual cidade mostrar. A ordem é
+**cidade detectada → última cidade → estado vazio**, e toda falha cai para o
+degrau seguinte em silêncio.
+
+*Detectada* quer dizer resolvida **por nós** a partir da coordenada — o
+navegador entrega coordenada, nunca cidade. E ela só é buscada quando
+`navigator.permissions.query` responde que a permissão **já foi concedida**:
+nenhum pop-up é disparado no carregamento, nunca. Um pedido automático no
+primeiro acesso é negado por reflexo, e o browser lembra a negação.
+
+O tema claro/escuro vive no atributo `data-tema` do `<html>`, carimbado por um
+**script inline no `index.html`** antes do primeiro paint — com `useEffect`,
+quem usa escuro veria a página branca por 100–300 ms em toda visita. A chave do
+armazenamento está duplicada entre o HTML e `src/tema.ts`, e as duas precisam
+concordar; é o preço de não piscar.
+
+O tema escuro é só um segundo bloco de variáveis em
+[`index.css`](frontend/src/index.css): as utilitárias do Tailwind v4 apontam
+para `var(--color-*)`, então nenhum componente muda. **Duas exceções que
+surpreendem:**
+
+- A **sombra não** é variável na utilitária — o Tailwind assa o valor em tempo
+  de build. Por isso o aro que separa cartão de fundo no escuro entra
+  sobrescrevendo `--tw-shadow`, um nome interno do Tailwind. Se um dia os
+  cartões escuros perderem o contorno, é aí que se olha.
+- `--color-brand` **não** clareia no escuro, ao contrário do resto da paleta.
+  Sobre cartão branco, azul-sobre-fundo e branco-sobre-azul dão a mesma razão de
+  contraste; sobre cartão escuro elas divergem, e o que decide é o texto branco
+  de 10 px na coluna de hoje. Para o azul como *texto* existe
+  `--color-brand-text`, usado só onde o azul é texto.
 
 ## Configuração
 
