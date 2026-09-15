@@ -83,16 +83,18 @@ outras cinco existem como rota e mostram o que vai entrar nelas.
 [ADR 0002](docs/adr/0002-cidade-na-url.md). São seis parâmetros
 (`lat`, `lon`, `name`, `cc`, `country`, `admin1`) porque `/api/weather` exige
 `country_code` e usa os outros para montar o `location`. Consequências:
-`/vizinhas?lat=52.52&lon=13.41&name=Berlin&cc=DE` é um link que abre a mesma
-cidade na mesma página, e trocar de página não refaz a requisição.
+`/vizinhas?lat=52.52&lon=13.41&name=Berlin&cc=DE&country=Germany&admin1=Land+Berlin`
+é um link que abre a mesma cidade na mesma página, e trocar de página não
+refaz a requisição.
 
 Em produção o servidor precisa devolver `index.html` para qualquer caminho, ou
 recarregar em `/vizinhas` dá 404. O dev server e o `vite preview` já fazem
 isso; deploy continua fora de escopo.
 
-Toggle sol/lua, envelope, sino, avatar e o ícone de saída da barra lateral são
-**decoração inerte**, não botões: não há modo escuro nem cadastro, e um botão
-que aceita o clique sem responder promete o que não cumpre.
+Envelope, sino, avatar e o ícone de saída da barra lateral são **decoração
+inerte**, não botões: não há cadastro, e um botão que aceita o clique sem
+responder promete o que não cumpre. O toggle sol/lua saiu desta lista — com o
+tema escuro implementado, ele é um `<button>` de verdade.
 
 ## Cidade inicial e tema
 
