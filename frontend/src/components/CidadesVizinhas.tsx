@@ -37,7 +37,11 @@ export function CidadesVizinhas({ nearby, units }: Props) {
         <ul className="flex flex-col">
           {nearby.map((cidade) => (
             <li
-              key={`${cidade.name}-${cidade.distance_km}`}
+              // `country_code` na chave: `distance_km` e inteiro desde a
+              // revisao do ticket 24, entao duas homonimas que arredondem para
+              // a mesma distancia colidiriam. Homonimas quase sempre diferem
+              // por pais, e o codigo ja vem no payload.
+              key={`${cidade.name}-${cidade.country_code}-${cidade.distance_km}`}
               // Divisoria entre linhas, nao em volta delas: a ultima nao
               // recebe borda, para a tabela nao terminar num traco solto.
               className="flex items-center gap-2.5 border-b border-line py-2 last:border-0 last:pb-0"

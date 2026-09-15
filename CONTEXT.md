@@ -42,7 +42,13 @@ _Avoid_: cidade do navegador, geolocalização, minha cidade
 Uma cidade próxima à escolhida, apresentada para comparação regional, sempre
 acompanhada da distância. A distância não é opcional: numa cidade isolada as
 vizinhas são distantes, e omiti-la sugeriria uma vizinhança que não existe.
-_Avoid_: cidade próxima, região, redondeza
+
+O que a lista abaixo proíbe é **nomear uma cidade vizinha** com essas palavras —
+"as regiões em volta" no lugar de "as cidades vizinhas". *Região* no sentido
+geográfico comum continua valendo, e a própria definição acima a usa
+("comparação regional"): "territórios e regiões especiais" ou "regiões densas"
+não são sinônimos do verbete, são outra coisa.
+_Avoid_: cidade próxima, região, redondeza — **como nome da cidade vizinha**
 
 ### Condições
 

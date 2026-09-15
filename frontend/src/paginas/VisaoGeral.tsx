@@ -4,7 +4,7 @@
  * O grid segue as tres faixas da spec, com proporcoes proprias em vez de doze
  * colunas — um grid de 12 nao reproduz as larguras do design.
  *
- * Os quatro estados do painel sao tratados **aqui**, e nao no `Shell`. Se o
+ * Os cinco estados do painel sao tratados **aqui**, e nao no `Shell`. Se o
  * Shell os tratasse, ele renderizaria "busque uma cidade" no lugar da pagina, e
  * as cinco paginas ainda vazias nunca chegariam a mostrar o que sao.
  */

@@ -5,7 +5,7 @@ mostrar, e o toggle sol/lua do cabeçalho passa a funcionar.
 
 **Blocked by:** —
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 Reverte duas decisões da spec, por motivos diferentes.
 
@@ -77,3 +77,10 @@ detectada** (a resolvida a partir da coordenada). O navegador devolve
 `overcast-day.svg` usa cinzas `#6b7280`–`#9ca3af`. Sobre cartão escuro o
 contraste fica baixo. Os demais Meteocons têm nuvens quase brancas
 (`#deeafb`–`#f3f7fe`) e sol âmbar, que sobrevivem aos dois temas.
+
+
+## Comments
+
+O `Status:` ficou em `ready-for-agent` depois da entrega, com os treze criterios
+ja marcados — um agente de triagem a leria como trabalho pendente. Corrigido na
+revisao da branch (2026-09-15).
