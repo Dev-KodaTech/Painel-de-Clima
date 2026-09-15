@@ -178,6 +178,11 @@ class Nearby(BaseModel):
 
     name: str
     country_code: str
+    # Exatas como o dataset as traz, sem o arredondamento que `distance_km`
+    # sofre: a distancia e um numero lido, e a coordenada e consumida por um
+    # mapa. Arredonda-la poria o marcador longe do ponto que mediu a distancia.
+    latitude: float
+    longitude: float
     # Inteiro, e nao `float`: a distancia e estimada sobre a esfera e exibida
     # arredondada ao km. Declara-la fracionaria prometeria uma precisao que o
     # valor nao tem e que ninguem le.

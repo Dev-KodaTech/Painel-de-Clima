@@ -168,6 +168,10 @@ def _vizinhas(
             Nearby(
                 name=cidade.name,
                 country_code=cidade.country_code,
+                # As mesmas que foram pedidas a API externa: no payload, a
+                # coordenada passa a testemunhar o casamento posicional.
+                latitude=cidade.latitude,
+                longitude=cidade.longitude,
                 # Arredondada ao km: a tabela exibe inteiros, e a precisao de
                 # ponto flutuante nao significa nada numa distancia estimada
                 # sobre a esfera.

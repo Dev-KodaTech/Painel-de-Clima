@@ -126,6 +126,12 @@ export type Alerta = {
 export type Nearby = {
   name: string;
   country_code: string;
+  /**
+   * Exatas, sem o arredondamento de `distance_km`: sao as que a selecao usou
+   * para medir a distancia, e o que permite marcar a cidade num mapa.
+   */
+  latitude: number;
+  longitude: number;
   /** Inteiro: a distancia e estimada sobre a esfera e vem arredondada ao km. */
   distance_km: number;
   temperature: number;

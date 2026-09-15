@@ -7,7 +7,7 @@ dados.
 
 A selecao em si tem costura propria em `test_vizinhas.py`, sobre a funcao pura.
 Aqui o que se verifica e o trajeto: duas chamadas, o casamento posicional entre
-cidade e leitura, e a distancia obrigatoria no payload.
+cidade e leitura, e a distancia e a coordenada de cada vizinha no payload.
 """
 
 import httpx
@@ -74,6 +74,8 @@ def test_nearby_traz_as_vizinhas_com_distancia_e_temperatura(app_com_dataset):
         # Obrigatoria: sem ela, "Auckland" no painel de Papeete sugeriria uma
         # vizinhanca que nao existe.
         assert vizinha["distance_km"] > 0
+        assert -90 <= vizinha["latitude"] <= 90
+        assert -180 <= vizinha["longitude"] <= 180
         assert vizinha["description"]
         assert vizinha["icon"]
 
@@ -195,3 +197,50 @@ def test_sem_dataset_carregado_o_painel_nao_cai(monkeypatch):
     # Uma so chamada: sem vizinhas, a segunda seria uma requisicao sem
     # coordenada alguma, que a API externa recusaria com `400`.
     assert rota.call_count == 1
+
+
+@respx.mock
+def test_a_coordenada_exibida_e_a_que_a_selecao_usou(app_com_dataset):
+    """Sem arredondamento proprio: o mapa marca o ponto que mediu a distancia.
+
+    Arredondar aqui — como `distance_km` faz, por ser um numero lido — poria o
+    marcador a ate um quilometro de onde a distancia da linha diz que ele esta.
+    A distancia e exibida, e por isso arredonda; a coordenada e consumida por
+    uma maquina, e por isso nao.
+    """
+    _mockar_as_duas_chamadas()
+
+    nearby = app_com_dataset.get("/api/weather", params=BERLIM).json()["nearby"]
+
+    por_nome = {cidade.name: cidade for cidade in dataset.cidades()}
+    for vizinha in nearby:
+        do_dataset = por_nome[vizinha["name"]]
+        assert vizinha["latitude"] == do_dataset.latitude
+        assert vizinha["longitude"] == do_dataset.longitude
+
+
+@respx.mock
+def test_a_coordenada_pedida_a_api_e_a_que_sai_no_payload(app_com_dataset):
+    """O casamento posicional, agora visivel pelas duas pontas.
+
+    A correspondencia entre cidade e leitura e a ordem da requisicao, e ate
+    aqui so a temperatura a testemunhava. Com a coordenada no payload, a
+    propria chave do casamento fica comparavel: uma troca de ordem passa a
+    aparecer como coordenada fora de lugar, e nao apenas como um numero
+    plausivel na linha errada.
+    """
+    rota = _mockar_as_duas_chamadas()
+
+    nearby = app_com_dataset.get("/api/weather", params=BERLIM).json()["nearby"]
+
+    params = rota.calls.last.request.url.params
+    # Comparadas como numero, e nao como texto: a igualdade que importa e a do
+    # valor, e casar a formatacao de `str(float)` prenderia o teste ao `repr`
+    # do Python em vez de ao que o payload promete.
+    pedidas = [
+        (float(lat), float(lon))
+        for lat, lon in zip(
+            params["latitude"].split(","), params["longitude"].split(",")
+        )
+    ]
+    assert [(v["latitude"], v["longitude"]) for v in nearby] == pedidas

@@ -54,7 +54,7 @@ cd backend && uv run pytest -m contract
 A documentação interativa fica em http://localhost:8000/docs, gerada dos
 modelos Pydantic.
 
-Três detalhes do contrato que surpreendem:
+Quatro detalhes do contrato que surpreendem:
 
 - `current.high` e `current.low` vêm do bloco **diário** da Open-Meteo, que não
   os fornece em `current`.
@@ -64,6 +64,10 @@ Três detalhes do contrato que surpreendem:
 - `nearby[].distance_km` é **obrigatório**. Numa cidade isolada as vizinhas
   estão a milhares de quilômetros, e "Auckland — 4.094 km" é honesto onde
   "Auckland" sozinha sugeriria uma vizinhança que não existe.
+- `nearby[].latitude` e `nearby[].longitude` vêm **exatas**, ao contrário de
+  `distance_km`, que vem arredondada ao quilômetro na mesma linha. A distância
+  é um número lido; a coordenada é consumida por um mapa, e arredondá-la poria
+  o marcador longe do ponto que mediu a distância.
 
 ## Páginas
 
