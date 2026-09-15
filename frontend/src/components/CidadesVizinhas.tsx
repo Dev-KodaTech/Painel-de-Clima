@@ -26,12 +26,12 @@ type Props = {
   units: Units;
 };
 
-export function CidadesProximas({ nearby, units }: Props) {
+export function CidadesVizinhas({ nearby, units }: Props) {
   return (
-    <Painel titulo="Cidades proximas">
+    <Painel titulo="Cidades vizinhas">
       {nearby.length === 0 ? (
         <p className="text-[11px] text-ink-3">
-          Sem cidades proximas para comparar.
+          Sem cidades vizinhas para comparar.
         </p>
       ) : (
         <ul className="flex flex-col">

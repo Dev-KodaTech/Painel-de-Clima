@@ -12,7 +12,7 @@
 import { usePainel } from "../estadoDoPainel";
 import { CardDoDia } from "../components/CardDoDia";
 import { CardSol } from "../components/CardSol";
-import { CidadesProximas } from "../components/CidadesProximas";
+import { CidadesVizinhas } from "../components/CidadesVizinhas";
 import { CondicoesPrevistas } from "../components/CondicoesPrevistas";
 import { Precipitacao } from "../components/Precipitacao";
 import { PrevisaoSemana } from "../components/PrevisaoSemana";
@@ -71,7 +71,7 @@ export function VisaoGeral() {
       <div className="grid grid-cols-[1.35fr_.75fr_1.1fr] gap-4">
         <PrevisaoSemana daily={painel.daily} units={painel.units} />
         <CardSol sun={painel.sun} />
-        <CidadesProximas nearby={painel.nearby} units={painel.units} />
+        <CidadesVizinhas nearby={painel.nearby} units={painel.units} />
       </div>
 
       {/* Faixa 3: precipitacao e condicoes previstas. Ambas leem os mesmos
