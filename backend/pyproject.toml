@@ -8,6 +8,9 @@ dependencies = [
     "uvicorn[standard]>=0.34.0",
     "httpx>=0.28.1",
     "pydantic>=2.13.5",
+    "sqlalchemy>=2.0.36",
+    "alembic>=1.14.0",
+    "psycopg[binary]>=3.2.3",
 ]
 
 [dependency-groups]
@@ -20,5 +23,10 @@ dev = [
 testpaths = ["tests"]
 markers = [
     "contract: bate na API real da Open-Meteo; excluido da execucao padrao",
+    "postgres: exige o Postgres do compose.yaml subido; excluido da execucao padrao",
 ]
-addopts = "-m 'not contract'"
+#: As duas exclusoes pela mesma razao: a suite padrao nao depende de rede nem
+#: de infraestrutura, e roda em cerca de um segundo. `postgres` entra aqui,
+#: junto de `contract`, porque a alternativa — pular por deteccao, quando a
+#: conexao falha — transformaria "o banco nao subiu" em suite verde.
+addopts = "-m 'not contract and not postgres'"

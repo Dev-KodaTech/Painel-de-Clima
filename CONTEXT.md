@@ -103,9 +103,12 @@ não tem termo de domínio — é `WeatherResponse` no código e nada mais.
 _Avoid_: card, widget, bloco, "o painel completo"
 
 **Página**:
-Uma das seis visões alcançáveis pela barra lateral: Visão geral, Tendência,
-Cidades vizinhas, Condições previstas, Sete dias e Ajustes. Uma página ocupa a
-área de conteúdo inteira e tem URL própria.
+Uma das sete visões alcançáveis pela barra lateral: Visão geral, Tendência,
+Cidades vizinhas, Locais salvos, Condições previstas, Sete dias e Ajustes. Uma
+página ocupa a área de conteúdo inteira e tem URL própria.
+
+Seis delas mostram a mesma coisa para qualquer pessoa que abra a URL. Locais
+salvos é a exceção — a mesma URL mostra conteúdo diferente conforme a conta.
 
 Distinta de painel: um painel mora *dentro* de uma página, e a mesma informação
 pode aparecer resumida num painel da Visão geral e por inteiro na sua página.
@@ -124,3 +127,40 @@ Sem este registro, "tendência" repetiria o problema que o glossário desfez com
 "painel": um nome para coisas de escalas diferentes. Ao falar de qualquer uma
 delas, diga qual — "a página Tendência" ou "o painel de tendência".
 _Avoid_: "a tendência" sem qualificar
+
+### Conta
+
+**Conta**:
+A identidade que possui locais salvos, criada com e-mail e senha. Existe por uma
+razão só: dar dono a uma lista. Nada mais no app depende dela — as sete páginas
+funcionam sem nenhuma conta, exceto a lista dos salvos.
+
+Distinta de *pessoa*: duas contas podem ser da mesma pessoa e o app não tem como
+saber, nem precisa.
+_Avoid_: usuário, perfil, login (como substantivo)
+
+**Sessão**:
+A prova de que quem está pedindo é o dono da conta. Vive num cookie `HttpOnly`
+e numa linha da tabela; sair apaga a linha, e é isso que faz o logout ser real.
+
+Distinta de conta: a conta permanece, a sessão expira. Uma conta pode ter várias
+sessões ao mesmo tempo — é o mesmo dono em dois navegadores.
+_Avoid_: token, JWT, login (como substantivo), autenticação
+
+**Local salvo**:
+Uma cidade que a pessoa guardou na sua conta, para reabrir depois sem buscar de
+novo.
+
+É o único conceito do glossário que **persiste e tem dono**. Todas as outras
+cidades são derivadas de algo — a candidata vem da busca, a escolhida vem da
+candidata, a vizinha vem da escolhida, a detectada vem da coordenada. O local
+salvo não é derivado de nada: é uma decisão que alguém tomou e que sobrevive ao
+fechar a aba.
+
+Por isso não se chama "cidade salva". Já há quatro termos começando em *cidade*,
+e todos significam "cidade que o app calculou". Chamar esta de cidade a
+colocaria na mesma prateleira de coisas que ela justamente não é.
+
+Um local salvo **não tem distância**: distância de quê? A vizinha tem, porque
+existe em relação à escolhida. O salvo existe sozinho.
+_Avoid_: favorito, cidade salva, bookmark, marcador

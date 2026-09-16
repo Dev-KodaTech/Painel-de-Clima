@@ -11,10 +11,29 @@ Spec: [`.scratch/weather-dashboard/spec.md`](.scratch/weather-dashboard/spec.md)
 
 - Python ≥ 3.11 e [uv](https://docs.astral.sh/uv/)
 - Node ≥ 20 e npm
+- Docker, para o Postgres — **só o banco** roda em container
 
 ## Subir o ambiente
 
-Dois comandos, em dois terminais.
+Três comandos. O banco sobe em container; backend e frontend rodam na máquina,
+porque o recarregamento automático de ambos é o que torna o desenvolvimento
+tolerável — e dentro de container ele exige montagem de volumes que quebra com
+frequência. Containerizar a aplicação inteira é decisão separada, para deploy.
+
+**Banco** (porta 5433), na raiz do projeto:
+
+```bash
+docker compose up -d
+cd backend && uv run alembic upgrade head
+```
+
+A porta é a **5433**, e não a 5432: a padrão do Postgres colide com qualquer
+outro projeto que tenha um banco subido, e o erro do Docker (`port is already
+allocated`) não diz de quem é a culpa. Dentro do container a porta continua
+sendo a 5432 — quem muda é o lado de fora.
+
+`upgrade head` é idempotente: rodá-lo de novo num banco já migrado não faz
+nada. Roda-se a cada `git pull` que traga migração nova.
 
 **Backend** (porta 8000):
 
@@ -37,12 +56,35 @@ browser só vê uma origem e não há CORS em desenvolvimento.
 cd backend && uv run pytest
 ```
 
-O teste de contrato bate na API real e fica fora da execução padrão. Para
-rodá-lo sob demanda:
+A execução padrão **não precisa de banco nem de Docker** e roda em ~9 s: o
+acesso ao banco entra por injeção, e a suíte usa um repositório em memória que
+implementa a mesma interface do de verdade. É a propriedade mais valiosa da
+suíte, e há testes que existem só para protegê-la
+([`test_injecao_do_banco.py`](backend/tests/test_injecao_do_banco.py)).
+
+Dois marcadores ficam **fora** da execução padrão, cada um por depender de algo
+que a suíte não quer exigir de todo mundo:
 
 ```bash
+# Bate na API real da Open-Meteo. Exige rede.
 cd backend && uv run pytest -m contract
+
+# Roda contra o Postgres de verdade. Exige o container subido.
+docker compose up -d
+cd backend && uv run pytest -m postgres
 ```
+
+Os testes `postgres` criam e destroem um banco próprio (`painel_teste`), então
+não tocam no banco de desenvolvimento. Eles aplicam as **migrações** em vez de
+criar as tabelas pelo schema: é o que prova que a migração produz o schema
+completo num banco vazio — com `create_all`, uma migração esquecida passaria
+verde.
+
+O que eles rodam é **a mesma bateria** que a suíte padrão roda em memória
+([`TestRepositorioNoPostgres`](backend/tests/test_repositorio.py) herda a
+classe inteira e só troca a fixture). É o que impede as duas implementações de
+divergirem: se divergirem, o caso falha ali. Sem eles, o repositório em memória
+esconderia erros de SQL.
 
 ## Endpoints
 
@@ -138,6 +180,40 @@ surpreendem:**
 | Variável | Padrão | Para que serve |
 |---|---|---|
 | `CORS_ORIGINS` | vazio | Origens permitidas, separadas por vírgula. Só é necessária quando frontend e backend forem servidos de origens diferentes; em dev o proxy do Vite dispensa. |
+| `DATABASE_URL` | o banco local na 5433 | A URL do Postgres. O esquema precisa ser `postgresql+psycopg://` — o driver é o psycopg 3, e sem o sufixo o SQLAlchemy procura o psycopg2 e reclama de um pacote que ninguém pediu. |
+
+As duas têm padrão no código, então um `.env` vazio funciona em desenvolvimento.
+[`backend/.env.example`](backend/.env.example) documenta as duas; o `.env` real
+não entra no git.
+
+### O banco
+
+Três tabelas — **contas**, **sessões** e **locais salvos** —, criadas pela
+migração inicial. Três e nada mais: o cache da API externa continua em memória,
+porque cache que some no restart é cache funcionando, e o conjunto de cidades do
+GeoNames continua sendo o arquivo lido no boot, porque é dado que nunca muda.
+
+Três garantias moram no **schema**, e não no código que escreve nele — é o que
+as mantém verdadeiras para quem insere por outro caminho:
+
+- o e-mail da conta é único **sem diferenciar maiúsculas**, por um índice
+  funcional sobre `lower(email)`;
+- apagar uma conta leva suas sessões e seus locais salvos junto, por
+  `ON DELETE CASCADE`;
+- um local salvo não se repete dentro da mesma conta, por unicidade de
+  `(conta_id, identidade)` — e `identidade` é a coordenada arredondada a duas
+  casas mais o código do país, porque comparar pelo nome falharia com grafias
+  diferentes da mesma cidade.
+
+Para criar uma migração depois de mexer em
+[`backend/app/db/schema.py`](backend/app/db/schema.py):
+
+```bash
+cd backend && uv run alembic revision --autogenerate -m "o que mudou"
+```
+
+Revise o arquivo gerado antes de aplicá-lo — o `--autogenerate` não detecta
+renomeação de coluna, que ele vê como uma coluna apagada e outra criada.
 
 ## Cidades vizinhas: o dataset local
 
@@ -166,6 +242,19 @@ vizinhas fica permanentemente vazio. O teste de carga
 
 - `backend/` — FastAPI. Busca, combina e traduz os dados da Open-Meteo.
 - `frontend/` — React + TypeScript + Vite, Tailwind v4.
+- `compose.yaml` — o Postgres, e só ele.
+
+No backend, o banco mora em quatro lugares com papéis distintos:
+`app/db/schema.py` é o schema, `app/db/repositorio.py` é o acesso (a interface
+e as duas implementações), `app/db/transacao.py` é o `engine` e a unidade de
+trabalho, e `app/repositorio_do_processo.py` é o ponto de injeção — a mesma
+mecânica de `app/cache_do_processo.py`, e de propósito: quem sabe ler um sabe
+ler o outro.
+
+`transacao.py` não se chama `sessao.py` porque `CONTEXT.md` reserva *sessão*
+para a prova de que quem está pedindo é o dono da conta. A sessão do SQLAlchemy
+é outra coisa, e dois sentidos no mesmo nome dentro do mesmo pacote é o tipo de
+colisão que faz alguém ler `sessao.criar()` e entender o contrário.
 
 O Tailwind v4 é CSS-first: os tokens de design ficam num bloco `@theme` em
 [`frontend/src/index.css`](frontend/src/index.css). Não existe

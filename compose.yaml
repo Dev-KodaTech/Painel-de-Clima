@@ -1,0 +1,37 @@
+# So o banco e containerizado.
+#
+# Backend e frontend continuam rodando como o README manda, porque o
+# recarregamento automatico de ambos e o que torna o desenvolvimento
+# toleravel — e dentro de container ele exige montagem de volumes que quebra
+# com frequencia. Containerizar a aplicacao inteira e decisao separada, para
+# deploy. Ver ADR 0004.
+services:
+  db:
+    image: postgres:17-alpine
+    # As mesmas credenciais que o `.env.example` documenta: em dev o banco
+    # escuta em localhost e nao ha nada a proteger; em producao a URL inteira
+    # vem do ambiente e este arquivo nao participa.
+    environment:
+      POSTGRES_USER: painel
+      POSTGRES_PASSWORD: painel
+      POSTGRES_DB: painel
+    # **5433 no host**, nao 5432: a porta padrao do Postgres colide com
+    # qualquer outro projeto que tenha um banco subido, e o erro do Docker
+    # ("port is already allocated") nao diz de quem e a culpa. Dentro do
+    # container a porta continua sendo a 5432; quem muda e o lado de fora,
+    # e e por isso que a URL em `.env.example` traz :5433.
+    ports:
+      - "5433:5432"
+    volumes:
+      - dados-do-postgres:/var/lib/postgresql/data
+    # Sem o healthcheck, `docker compose up -d` retorna assim que o container
+    # sobe, e as migracoes aplicadas em seguida falham por alguns segundos —
+    # o Postgres reinicia uma vez durante a inicializacao do cluster.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U painel -d painel"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
+volumes:
+  dados-do-postgres:

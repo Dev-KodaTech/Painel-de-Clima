@@ -1,0 +1,29 @@
+As migracoes, com Alembic sobre SQLAlchemy.
+
+O schema mora em `app/db/schema.py`; os arquivos em `versions/` sao gerados a
+partir dele. Duas coisas neste diretorio foram editadas em relacao ao que o
+`alembic init` gera, e as duas estao comentadas no `env.py`:
+
+- a URL vem de `app.config.database_url()` (ou seja, de `DATABASE_URL`), e nao
+  do `alembic.ini` — uma URL no ini seria uma segunda fonte de verdade, e em
+  producao seria a errada;
+- `target_metadata` e o `Base.metadata` do schema, que e o que faz o
+  `--autogenerate` funcionar.
+
+Aplicar:
+
+    cd backend && uv run alembic upgrade head
+
+Criar, depois de mexer no schema:
+
+    cd backend && uv run alembic revision --autogenerate -m "o que mudou"
+
+Revise o arquivo gerado antes de aplicar. O `--autogenerate` compara tabelas,
+colunas, indices e constraints, mas nao detecta renomeacao: uma coluna que
+trocou de nome sai como uma apagada e outra criada, e aplicar isso perde os
+dados da coluna.
+
+Que a migracao produz o schema completo num banco vazio e verificado por
+`tests/test_repositorio.py`, na bateria marcada com `postgres` — ela aplica as
+migracoes num banco descartavel, e nao `create_all`, justamente para que uma
+migracao esquecida nao passe verde.
