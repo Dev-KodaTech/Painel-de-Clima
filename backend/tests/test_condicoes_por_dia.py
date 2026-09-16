@@ -21,7 +21,9 @@ from tests.fixtures import (
 
 client = TestClient(app)
 
-BERLIM = {"latitude": 52.52437, "longitude": 13.41053}
+#: Berlim, fora do Brasil: exercita o caminho comum destes testes sem tocar o
+#: INMET, que `test_inmet.py` cobre a parte.
+BERLIM = {"latitude": 52.52437, "longitude": 13.41053, "country_code": "DE"}
 
 
 def _condicoes(daily: dict) -> list[dict]:

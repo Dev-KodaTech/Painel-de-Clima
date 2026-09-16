@@ -217,19 +217,22 @@ export async function buscarHistorico(
 }
 
 /**
- * As condicoes severas previstas, um item por dia que dispara.
+ * Os alertas oficiais do INMET e as condicoes severas previstas.
  *
  * Endpoint proprio, buscado na pagina Condicoes (ADR 0003: so uma pagina le,
- * entao vai nela). So a coordenada viaja, como em `buscarHistorico` — nada
- * aqui exibe o nome da cidade.
+ * entao vai nela). `country_code` viaja alem da coordenada — diferente de
+ * `buscarHistorico` — porque decide se o backend consulta o INMET: sem ele a
+ * pagina nao teria como distinguir "sem alertas" de "fora de cobertura"
+ * (ADR 0008).
  */
 export async function buscarCondicoes(
-  cidade: Pick<CidadeDoPainel, "latitude" | "longitude">,
+  cidade: Pick<CidadeDoPainel, "latitude" | "longitude" | "country_code">,
   sinal?: AbortSignal,
 ): Promise<CondicoesResponse> {
   const params = new URLSearchParams({
     latitude: String(cidade.latitude),
     longitude: String(cidade.longitude),
+    country_code: cidade.country_code,
   });
 
   return pegar<CondicoesResponse>(`/api/condicoes?${params}`, sinal);

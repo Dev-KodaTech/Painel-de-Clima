@@ -29,9 +29,28 @@ UNIDADES_DO_HISTORICO = {
     "uv": "",
 }
 
-#: Exigido por CC-BY 4.0 pela Open-Meteo e pelo GeoNames. String pronta, para
-#: que o frontend nao monte texto de licenca.
-ATRIBUICAO = "Dados: Open-Meteo.com (CC BY 4.0) · Cidades: GeoNames (CC BY 4.0)"
+#: Exigido por CC-BY 4.0 pela Open-Meteo e pelo GeoNames. Toda pagina cita as
+#: duas, entao a base e comum; o INMET so entra em `/api/condicoes`, e so
+#: quando ha alerta a mostrar. Ver `atribuicao()`.
+_ATRIBUICAO_BASE = "Dados: Open-Meteo.com (CC BY 4.0) · Cidades: GeoNames (CC BY 4.0)"
+
+#: A licenca do INMET e ambigua — `<copyright>public domain</copyright>`
+#: convive com "desde que citada a fonte" no mesmo feed. Creditar e a leitura
+#: segura das duas.
+_ATRIBUICAO_INMET = "Alertas: INMET"
+
+
+def atribuicao(*, com_inmet: bool = False) -> str:
+    """Monta a linha de atribuicao de um endpoint.
+
+    Funcao, e nao mais uma constante unica: o INMET so aparece em
+    `/api/condicoes`, e mesmo ali so quando a resposta de fato traz um alerta
+    — credita-lo sem alerta algum seria impreciso. Cada endpoint decide o que
+    citar em vez de todos herdarem a mesma string.
+    """
+    if not com_inmet:
+        return _ATRIBUICAO_BASE
+    return f"{_ATRIBUICAO_BASE} · {_ATRIBUICAO_INMET}"
 
 
 class Cidade(BaseModel):
@@ -168,6 +187,39 @@ class CondicaoPrevista(BaseModel):
     )
 
 
+class AlertaOficial(BaseModel):
+    """Um alerta do INMET que cobre a cidade escolhida.
+
+    O que uma `CondicaoPrevista` nao pode ter: severidade oficial, janela de
+    validade declarada por quem emitiu, e recomendacoes de seguranca. Existe
+    para uma regiao — o poligono do aviso —, nao para a cidade; a mesma
+    instancia pode cobrir muitas cidades diferentes.
+    """
+
+    id: str = Field(description="Identificador do aviso no INMET.")
+    tipo: str = Field(description="A ameaca do aviso, como o INMET a nomeia.")
+    severidade: str = Field(description="O rotulo oficial: 'Perigo', por exemplo.")
+    # Inteiro fechado (1 a 8), nao `str`: e a chave que decide precedencia
+    # entre alertas simultaneos e o campo que a interface anuncia por texto,
+    # nao so por cor, para quem usa leitor de tela.
+    id_severidade: int = Field(
+        description=(
+            "1 a 8, crescente com a gravidade. Usado para ordenar quando ha "
+            "mais de um alerta ativo; a interface sempre anuncia a "
+            "`severidade` como texto, nunca so a cor."
+        )
+    )
+    cor: str = Field(
+        description="A cor oficial do INMET para a severidade, em hexadecimal."
+    )
+    inicio: str = Field(description="Inicio da janela de validade, como o INMET a emitiu.")
+    fim: str = Field(description="Fim da janela de validade.")
+    riscos: str = Field(description="Os riscos descritos pelo INMET.")
+    instrucoes: str = Field(
+        description="As recomendacoes de seguranca. Atras de um expandir na interface."
+    )
+
+
 class Nearby(BaseModel):
     """Uma cidade vizinha, selecionada por aneis sobre o dataset local.
 
@@ -202,6 +254,14 @@ class Units(BaseModel):
     distance: str
 
 
+#: Um dos dois slots do card de condicoes do painel — alerta oficial ou
+#: condicao prevista. Uniao, e nao um campo `tipo` a mais em cada modelo: os
+#: dois ja tem formas diferentes (severidade oficial de um lado, `also_days`
+#: do outro), e o discriminador e o unico jeito do frontend saber qual
+#: renderizar sem inspecionar os campos presentes.
+PainelSlot = AlertaOficial | CondicaoPrevista
+
+
 class WeatherResponse(BaseModel):
     """O painel. Um objeto por painel da interface."""
 
@@ -210,12 +270,13 @@ class WeatherResponse(BaseModel):
     hourly: list[HourlyPoint]
     daily: list[DailyPoint]
     sun: Sun
-    condicoes: list[CondicaoPrevista] = Field(
+    condicoes: list[PainelSlot] = Field(
         description=(
-            "Condicoes severas previstas. No maximo duas aqui — o teto e do "
-            "layout deste painel, nao do dado. Lista vazia e o caminho "
-            "normal, nao erro: duas das seis cidades da amostra caem nele, e "
-            "o painel mostra o estado vazio em vez de sumir."
+            "Condicoes severas previstas e alertas oficiais, no maximo duas "
+            "aqui — o teto e do layout deste painel, nao do dado. Alerta "
+            "oficial tem precedencia sobre condicao prevista nos dois slots "
+            "(ADR 0007): quando ha alerta, ele entra primeiro. Lista vazia e "
+            "o caminho normal, nao erro."
         )
     )
     nearby: list[Nearby] = Field(
@@ -231,14 +292,34 @@ class WeatherResponse(BaseModel):
     attribution: str
 
 
-class CondicoesResponse(BaseModel):
-    """A pagina Condicoes: um item por dia que dispara, sem dedup nem teto.
+#: Os tres estados da secao de alertas oficiais, **nunca colapsados** entre
+#: si. "Sem alertas" e "fora de cobertura" parecem a mesma coisa vistos de
+#: fora — os dois mostram uma lista vazia —, mas afirmam fatos diferentes: um
+#: diz "consultamos e nao ha nada", o outro diz "nao temos como saber". Tratar
+#: os dois como o mesmo estado seria afirmar seguranca sobre uma regiao sem
+#: dado (ADR 0008). `indisponivel` e o terceiro: a consulta falhou, e a
+#: ausencia de alerta na resposta nao pode ser lida como ausencia de aviso.
+StatusDosAlertas = Literal["ok", "fora_de_cobertura", "indisponivel"]
 
-    O oposto do bloco `condicoes` do painel. La o teto e o dedup existem para
-    caber em dois cards de altura fixa; aqui nao ha layout a proteger, entao a
-    semana de Wellington chega como cinco itens de vento, um por dia.
+
+class CondicoesResponse(BaseModel):
+    """A pagina Condicoes: alertas oficiais do INMET e condicoes previstas.
+
+    Duas secoes, nao uma lista — ADR 0007. `condicoes` e o oposto do bloco
+    homonimo do painel: la o teto e o dedup existem para caber em dois cards
+    de altura fixa, aqui nao ha layout a proteger, entao a semana de
+    Wellington chega como cinco itens de vento, um por dia.
     """
 
+    alertas: list[AlertaOficial] = Field(
+        description=(
+            "Os avisos do INMET que cobrem a cidade escolhida. Vazia tanto "
+            "quando `status_dos_alertas` e `ok` sem aviso ativo quanto quando "
+            "e `fora_de_cobertura` ou `indisponivel` — quem le decide o que "
+            "a lista vazia significa pelo status, nunca pela lista sozinha."
+        )
+    )
+    status_dos_alertas: StatusDosAlertas
     condicoes: list[CondicaoPrevista] = Field(
         description=(
             "Um item por dia que dispara uma categoria, em ordem cronologica. "

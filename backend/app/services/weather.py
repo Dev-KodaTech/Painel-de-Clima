@@ -1,26 +1,38 @@
 """Monta o payload do painel a partir das respostas da API externa."""
 
+import asyncio
+
 import httpx
 
 from app import dataset
 from app.models import (
-    ATRIBUICAO,
     UNIDADES_PADRAO,
+    AlertaOficial,
     Cidade,
     CidadeEscolhida,
+    CondicaoPrevista,
     CondicoesResponse,
     Current,
     DailyPoint,
     HourlyPoint,
     Location,
     Nearby,
+    PainelSlot,
+    StatusDosAlertas,
     Sun,
     Units,
     WeatherResponse,
+    atribuicao,
 )
-from app.services import condicoes, open_meteo, reverso, vizinhas
+from app.services import condicoes, inmet, open_meteo, reverso, vizinhas
 from app.services.geonames import CidadeLocal
 from app.services.wmo import traduzir
+
+#: O unico pais com cobertura de alerta oficial no app. Constante, e nao o
+#: literal solto na comparacao, porque o dia em que houver um segundo
+#: fornecedor a regra deixa de ser "e o Brasil?" e vira "quem cobre aqui?" —
+#: e ha de haver um lugar so para mudar.
+_CODIGO_DO_BRASIL = "BR"
 
 
 def para_cidade(bruto: dict) -> Cidade:
@@ -103,27 +115,77 @@ async def montar_painel(
     selecionadas = vizinhas.selecionar(
         dataset.cidades(), cidade.latitude, cidade.longitude
     )
-    atuais = await open_meteo.buscar_atual_de_varias(
-        client, [(vizinha.latitude, vizinha.longitude) for vizinha, _ in selecionadas]
+    # As duas em paralelo: sao fornecedores diferentes e nenhuma depende da
+    # outra, entao esperar uma para so entao pedir a outra somaria as
+    # latencias — e a do INMET tem timeout de dez segundos.
+    #
+    # Falha do INMET nao pode derrubar o painel inteiro — so a condicao
+    # prevista perde a chance de ser precedida por um alerta oficial. O painel
+    # nao carrega o status: ele nao tem onde dizer "nao foi possivel
+    # consultar" (sao dois cards de altura fixa, sem espaco para um terceiro
+    # estado), e e a pagina Condicoes que declara os tres. Ver ADR 0008.
+    atuais, (alertas, _) = await asyncio.gather(
+        open_meteo.buscar_atual_de_varias(
+            client,
+            [(vizinha.latitude, vizinha.longitude) for vizinha, _ in selecionadas],
+        ),
+        _alertas_oficiais(cidade.latitude, cidade.longitude, cidade.country_code),
     )
 
-    return _montar(previsao, cidade, _vizinhas(selecionadas, atuais))
+    return _montar(previsao, cidade, _vizinhas(selecionadas, atuais), alertas)
 
 
 async def montar_condicoes(
-    client: httpx.AsyncClient, latitude: float, longitude: float
+    client: httpx.AsyncClient, latitude: float, longitude: float, country_code: str
 ) -> CondicoesResponse:
-    """A pagina Condicoes: um item por dia que dispara, para uma coordenada.
+    """A pagina Condicoes: alertas do INMET e um item por dia que dispara.
 
     `buscar_previsao` e cacheado por coordenada arredondada — a mesma chave
     que `/api/weather` populou. Uma cidade cujo painel ja abriu nao gera
     segunda chamada a API externa ao abrir esta pagina dentro do TTL.
+
+    O INMET so e consultado quando `country_code` e `BR` — fora disso a
+    secao de alertas declara "fora de cobertura", nunca "sem alertas" (ADR
+    0008). Uma falha na consulta ao INMET nao derruba a resposta: as
+    condicoes previstas continuam vindo, e o status avisa que a consulta
+    falhou em vez de sugerir uma lista vazia de avisos.
     """
-    previsao = await open_meteo.buscar_previsao(client, latitude, longitude)
-    return CondicoesResponse(
-        condicoes=condicoes.derivar_por_dia(previsao["daily"]),
-        attribution=ATRIBUICAO,
+    # Em paralelo pela mesma razao do painel: dois fornecedores independentes,
+    # e a soma das latencias seria gratuita.
+    previsao, (alertas, status) = await asyncio.gather(
+        open_meteo.buscar_previsao(client, latitude, longitude),
+        _alertas_oficiais(latitude, longitude, country_code),
     )
+
+    return CondicoesResponse(
+        alertas=alertas,
+        status_dos_alertas=status,
+        condicoes=condicoes.derivar_por_dia(previsao["daily"]),
+        attribution=atribuicao(com_inmet=bool(alertas)),
+    )
+
+
+async def _alertas_oficiais(
+    latitude: float, longitude: float, country_code: str
+) -> tuple[list[AlertaOficial], StatusDosAlertas]:
+    """Os alertas do INMET e o estado da consulta, para uma coordenada.
+
+    Os dois juntos porque so fazem sentido juntos: lista vazia nao diz nada
+    sem o status que explica *por que* esta vazia (ADR 0008).
+
+    `.upper()` no codigo do pais pela mesma razao que o `repositorio.py` o
+    aplica: o parametro chega de uma URL, e `br` minusculo cairia em "fora de
+    cobertura" para uma coordenada brasileira — a falsa afirmacao de
+    seguranca que o ADR existe para impedir, so que disparada pela caixa em
+    vez da geografia.
+    """
+    if country_code.upper() != _CODIGO_DO_BRASIL:
+        return [], "fora_de_cobertura"
+
+    try:
+        return await inmet.alertas_da_coordenada(latitude, longitude), "ok"
+    except inmet.InmetIndisponivel:
+        return [], "indisponivel"
 
 
 def _horas_do_dia(hourly: dict, dia: str) -> list[HourlyPoint]:
@@ -203,7 +265,10 @@ def _vizinhas(
 
 
 def _montar(
-    previsao: dict, cidade: CidadeEscolhida, nearby: list[Nearby]
+    previsao: dict,
+    cidade: CidadeEscolhida,
+    nearby: list[Nearby],
+    alertas: list[AlertaOficial],
 ) -> WeatherResponse:
     current = previsao["current"]
     daily = previsao["daily"]
@@ -215,6 +280,12 @@ def _montar(
     # O dia corrente e o primeiro do bloco diario, nao a data de `current`:
     # ambos coincidem, mas o bloco diario e quem define a semana exibida.
     hoje = daily["time"][0]
+
+    # Alerta oficial tem precedencia sobre condicao prevista nos dois slots
+    # (ADR 0007): entra primeiro, e so o espaco que sobra vai para o dedup por
+    # categoria de `derivar()`. O painel continua com dois cards no total — o
+    # teto e do layout, nao mudou.
+    slots = _slots_do_painel(alertas, condicoes.derivar(daily))
 
     return WeatherResponse(
         location=Location(
@@ -250,10 +321,28 @@ def _montar(
             sunrise=daily["sunrise"][0],
             sunset=daily["sunset"][0],
         ),
-        # Derivadas da mesma semana que o painel exibe: nao ha fonte oficial de
-        # alerta aqui, e a interface diz isso em cada card.
-        condicoes=condicoes.derivar(daily),
+        condicoes=slots,
         nearby=nearby,
         units=Units(**UNIDADES_PADRAO),
-        attribution=ATRIBUICAO,
+        # Credita o INMET pelo que o painel de fato **exibe**, nao pelo que a
+        # consulta devolveu: com dois alertas ativos o segundo nao cabe nos
+        # slots, e um alerta que ficou de fora nao e fonte de nada aqui.
+        attribution=atribuicao(
+            com_inmet=any(isinstance(slot, AlertaOficial) for slot in slots)
+        ),
     )
+
+
+def _slots_do_painel(
+    alertas: list[AlertaOficial], previstas: list[CondicaoPrevista]
+) -> list[PainelSlot]:
+    """Os dois slots do card de condicoes, com alerta oficial na frente.
+
+    O painel nao mostra alerta e condicao prevista do mesmo total livremente
+    somados — o teto de dois cards e do layout (`condicoes.MAXIMO_DE_CARDS`),
+    e alerta entra primeiro nos slots que existem. Com dois alertas ativos, as
+    condicoes previstas nao aparecem no painel; a pagina Condicoes continua
+    mostrando as duas listas completas e separadas.
+    """
+    slots: list[PainelSlot] = [*alertas, *previstas]
+    return slots[: condicoes.MAXIMO_DE_CARDS]

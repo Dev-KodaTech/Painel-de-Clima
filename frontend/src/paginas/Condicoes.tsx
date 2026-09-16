@@ -1,21 +1,20 @@
 /**
- * A pagina Condicoes: um item por dia que dispara uma condicao severa.
+ * A pagina Condicoes: alertas oficiais do INMET e condicoes previstas.
  *
- * O painel da Visao geral deduplica por categoria e corta em dois cards, para
- * caber numa altura fixa — `also_days: int` e a admissao de que o dado por
- * dia existe e esta sendo descartado. Esta pagina e o contrario: a semana de
- * Wellington vira cinco itens de vento, com data e rajada de cada um, em vez
- * de um card dizendo "(+4 dias)". Os limiares sao os mesmos de `condicoes.py`,
- * so o colapso muda.
- *
- * Esta fatia entrega so a secao de condicoes previstas. A secao de alertas
- * oficiais do INMET e a fatia 03 — ver `.scratch/condicoes/spec.md`.
+ * Duas secoes separadas e rotuladas (ADR 0007), a de alertas acima. O painel
+ * da Visao geral deduplica condicao prevista por categoria e corta em dois
+ * cards, para caber numa altura fixa — `also_days: int` e a admissao de que o
+ * dado por dia existe e esta sendo descartado. A segunda secao desta pagina e
+ * o contrario: a semana de Wellington vira cinco itens de vento, com data e
+ * rajada de cada um, em vez de um card dizendo "(+4 dias)". Os limiares sao os
+ * mesmos de `condicoes.py`, so o colapso muda.
  *
  * ## Por que a requisicao mora aqui, e nao no `Shell`
  *
  * Regra do `docs/adr/0003-historico-e-buscado-na-pagina.md`: dado que so uma
  * pagina le, vai nela. So a Condicoes le `/api/condicoes` — as outras cinco
- * nunca leem um item por dia, so o par deduplicado que ja vem no painel.
+ * nunca leem um item por dia, so o par deduplicado (e agora possivelmente
+ * precedido por alerta) que ja vem no painel.
  *
  * O custo aceito e o mesmo da Tendencia: sair da pagina e voltar refaz a
  * requisicao. O cache de dez minutos do backend absorve — a chamada reaproveita
@@ -24,15 +23,18 @@
  *
  * ## Os cinco estados sao tratados aqui
  *
- * Como na Tendencia e em Cidades vizinhas: o carregamento e o erro das
- * condicoes nao tocam no cabecalho nem na atribuicao, que vem do painel.
+ * Como na Tendencia e em Cidades vizinhas: o carregamento e o erro da pagina
+ * nao tocam no cabecalho nem na atribuicao, que vem do painel. Dentro do
+ * estado "pronto", a secao de alertas tem os seus proprios tres estados —
+ * ver `AlertasOficiais`.
  */
 
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
 import { buscarCondicoes, mensagemDeErro } from "../api/client";
-import type { CondicaoPrevista } from "../api/types";
+import type { AlertaOficial, CondicaoPrevista, StatusDosAlertas } from "../api/types";
 import { cidadeDosParametros } from "../cidadeNaUrl";
+import { AlertasOficiais } from "../components/AlertasOficiais";
 import { Painel } from "../components/Painel";
 import { WeatherIcon } from "../components/WeatherIcon";
 import { usePainel } from "../estadoDoPainel";
@@ -45,7 +47,13 @@ import { diaDoCard } from "../formato";
  * resultado de outra cidade significa que o desta ainda nao chegou.
  */
 type Resultado =
-  | { chave: string; tipo: "pronto"; condicoes: CondicaoPrevista[] }
+  | {
+      chave: string;
+      tipo: "pronto";
+      alertas: AlertaOficial[];
+      statusDosAlertas: StatusDosAlertas;
+      condicoes: CondicaoPrevista[];
+    }
   | { chave: string; tipo: "erro"; mensagem: string };
 
 export function Condicoes() {
@@ -56,6 +64,10 @@ export function Condicoes() {
   const cidade = cidadeDosParametros(parametros);
   const latitude = cidade?.latitude;
   const longitude = cidade?.longitude;
+  // Nao entra na chave: a consulta e a mesma para a mesma coordenada, e o
+  // codigo do pais so acompanha a cidade — nunca muda sem que a coordenada
+  // mude junto. Entra nas dependencias porque a requisicao o usa.
+  const countryCode = cidade?.country_code ?? "";
   const chave = latitude === undefined ? null : `${latitude},${longitude}`;
 
   useEffect(() => {
@@ -65,9 +77,18 @@ export function Condicoes() {
 
     const controller = new AbortController();
 
-    buscarCondicoes({ latitude, longitude }, controller.signal)
+    buscarCondicoes(
+      { latitude, longitude, country_code: countryCode },
+      controller.signal,
+    )
       .then((resposta) =>
-        setResultado({ chave, tipo: "pronto", condicoes: resposta.condicoes }),
+        setResultado({
+          chave,
+          tipo: "pronto",
+          alertas: resposta.alertas,
+          statusDosAlertas: resposta.status_dos_alertas,
+          condicoes: resposta.condicoes,
+        }),
       )
       .catch((falha: unknown) => {
         if (controller.signal.aborted) return;
@@ -76,13 +97,13 @@ export function Condicoes() {
           tipo: "erro",
           mensagem: mensagemDeErro(
             falha,
-            "Nao foi possivel carregar as condicoes previstas.",
+            "Nao foi possivel carregar as condicoes.",
           ),
         });
       });
 
     return () => controller.abort();
-  }, [chave, latitude, longitude]);
+  }, [chave, latitude, longitude, countryCode]);
 
   // Nada, de proposito: o app ainda decide se abre com uma cidade, e a
   // instrucao de buscar uma seria errada por um instante.
@@ -91,13 +112,12 @@ export function Condicoes() {
   if (!cidade) {
     return (
       <p className="py-6 text-[13px] text-ink-2">
-        Busque uma cidade para ver as condicoes previstas.
+        Busque uma cidade para ver as condicoes.
       </p>
     );
   }
 
   const pronto = resultado?.chave === chave && resultado.tipo === "pronto";
-  const condicoes = pronto ? resultado.condicoes : null;
   const erro =
     resultado?.chave === chave && resultado.tipo === "erro"
       ? resultado.mensagem
@@ -107,9 +127,9 @@ export function Condicoes() {
     <section className="flex flex-col gap-4 py-2">
       <h2 className="text-lg font-semibold">Condicoes</h2>
 
-      {!condicoes && !erro && (
+      {!pronto && !erro && (
         <p role="status" className="py-6 text-[13px] text-ink-2">
-          Carregando as condicoes previstas…
+          Carregando as condicoes…
         </p>
       )}
 
@@ -119,7 +139,15 @@ export function Condicoes() {
         </p>
       )}
 
-      {condicoes && <ListaDeCondicoes condicoes={condicoes} />}
+      {pronto && (
+        <>
+          <AlertasOficiais
+            alertas={resultado.alertas}
+            status={resultado.statusDosAlertas}
+          />
+          <ListaDeCondicoes condicoes={resultado.condicoes} />
+        </>
+      )}
     </section>
   );
 }

@@ -115,11 +115,14 @@ async def weather_endpoint(
 async def condicoes_endpoint(
     latitude: float = Query(ge=-90, le=90),
     longitude: float = Query(ge=-180, le=180),
+    country_code: str = Query(min_length=2, max_length=2),
 ) -> CondicoesResponse:
-    """A pagina Condicoes: um item por dia que dispara, sem dedup nem teto.
+    """A pagina Condicoes: alertas oficiais e um item por dia que dispara.
 
-    So a coordenada: a pagina nao exibe nome de cidade, que o cabecalho ja
-    mostra do painel — o mesmo motivo de `/api/trends` nao pedi-lo.
+    Nome e nao vao aqui, como em `/api/trends` — a pagina nao os exibe, o
+    cabecalho ja mostra do painel. `country_code` e a excecao: decide se o
+    INMET e consultado, e sem ele a pagina nao sabe distinguir "sem alertas"
+    de "fora de cobertura" (ADR 0008).
 
     Reaproveita o cache de dez minutos de `buscar_previsao`: quando
     `/api/weather` ja populou a entrada para esta coordenada, abrir a pagina
@@ -127,6 +130,8 @@ async def condicoes_endpoint(
     """
     async with httpx.AsyncClient() as client:
         try:
-            return await weather.montar_condicoes(client, latitude, longitude)
+            return await weather.montar_condicoes(
+                client, latitude, longitude, country_code
+            )
         except OpenMeteoIndisponivel as erro:
             raise HTTPException(status_code=503, detail=MSG_INDISPONIVEL) from erro

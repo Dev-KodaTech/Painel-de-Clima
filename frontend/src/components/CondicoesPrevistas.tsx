@@ -1,25 +1,40 @@
 /**
- * As condicoes severas previstas para a semana.
+ * O card de condicoes do painel: alerta oficial e condicao prevista.
  *
- * O painel **nao se chama "alertas"**, e cada card diz que e derivado da
- * previsao. O desvio do design de referencia e deliberado: alerta
- * meteorologico e a categoria de informacao em que pessoas tomam decisao de
- * seguranca, e o que esta aqui e uma regra nossa sobre a previsao, nao um
- * aviso de defesa civil. Custa uma linha de texto.
+ * O painel **nao se chama "alertas"** — cada card de condicao prevista diz
+ * que e derivado da previsao, e cada card de alerta diz que e do INMET (ADR
+ * 0001, reafirmado pelo ADR 0007). Alerta oficial tem precedencia sobre
+ * condicao prevista nos dois slots: quando ha alerta, ele entra primeiro. O
+ * teto de dois cards e a altura fixa `h-faixa3` sao do layout, e nao mudam
+ * aqui — so a ordem dos slots muda com a precedencia.
  *
- * O card tambem muda de conteudo em relacao ao design, que mostra uma
- * temperatura grande ao lado do aviso: maxima e minima nada dizem sobre vento
- * ou tempestade. No lugar vao categoria, data e o valor que disparou.
+ * O card de condicao prevista muda de conteudo em relacao ao design de
+ * referencia, que mostra uma temperatura grande ao lado do aviso: maxima e
+ * minima nada dizem sobre vento ou tempestade. No lugar vao categoria, data e
+ * o valor que disparou.
  */
 
-import type { CondicaoPrevista } from "../api/types";
+import type { AlertaOficial, CondicaoPrevista, PainelSlot } from "../api/types";
 import { diaDoCard } from "../formato";
 import { Painel } from "./Painel";
 import { WeatherIcon } from "./WeatherIcon";
 
 type Props = {
-  condicoes: CondicaoPrevista[];
+  condicoes: PainelSlot[];
 };
+
+/**
+ * Se o slot e um alerta oficial.
+ *
+ * Testa a **presenca** de `severidade`, um campo que so o alerta tem, e nao a
+ * ausencia de `kind`: a checagem negativa classificaria como alerta qualquer
+ * coisa que nao fosse condicao prevista, e um terceiro tipo de slot — ou um
+ * `kind` que o alerta viesse a ganhar por outro motivo — cairia no ramo
+ * errado sem erro de compilacao.
+ */
+function ehAlertaOficial(slot: PainelSlot): slot is AlertaOficial {
+  return "severidade" in slot;
+}
 
 /**
  * "(+4 dias)" — os outros dias da mesma categoria, que nao viraram cards.
@@ -61,39 +76,68 @@ export function CondicoesPrevistas({ condicoes }: Props) {
         </div>
       ) : (
         <ul className={`flex ${ALTURA} flex-col gap-2.5`}>
-          {condicoes.map((alerta) => (
-            <li
-              key={alerta.kind}
-              className="flex items-center gap-3 rounded-inner bg-brand-soft p-2.5"
-            >
-              <WeatherIcon
-                icon={alerta.icon}
-                description={alerta.label}
-                className="size-9 shrink-0"
-              />
-              <div className="min-w-0">
-                <p className="text-[13px] font-semibold">
-                  {alerta.label}{" "}
-                  <span className="font-normal text-ink-2">
-                    {outrosDias(alerta.also_days)}
-                  </span>
-                </p>
-                <p className="text-[11px] text-ink-2">
-                  {diaDoCard(alerta.date)} · {alerta.detail}
-                </p>
-                {/* Em cada card, nao so no rodape do painel: um card lido
-                    sozinho — e e assim que se le um aviso — precisa carregar a
-                    sua propria procedencia. */}
-                <p className="text-[10px] text-ink-3">Derivado da previsao</p>
-              </div>
-            </li>
-          ))}
+          {condicoes.map((slot) =>
+            ehAlertaOficial(slot) ? (
+              <CardDeAlerta key={slot.id} alerta={slot} />
+            ) : (
+              <CardDeCondicaoPrevista key={slot.kind} condicao={slot} />
+            ),
+          )}
 
-          {/* O painel diz uma vez o que os cards dizem em resumo: que nada
-              aqui e aviso oficial de defesa civil. */}
-          <li className="text-[10px] text-ink-3">Nao sao alertas oficiais.</li>
+          {/* O painel diz uma vez o que os cards de condicao prevista dizem
+              em resumo: que nada ali e aviso oficial de defesa civil. Um
+              card de alerta, se houver, ja declara a propria fonte. */}
+          <li className="text-[10px] text-ink-3">
+            Condicoes previstas nao sao alertas oficiais.
+          </li>
         </ul>
       )}
     </Painel>
+  );
+}
+
+function CardDeAlerta({ alerta }: { alerta: AlertaOficial }) {
+  return (
+    <li className="flex items-center gap-3 rounded-inner bg-brand-soft p-2.5">
+      <span
+        aria-hidden="true"
+        className="size-9 shrink-0 rounded-full border border-line"
+        style={{ backgroundColor: alerta.cor }}
+      />
+      <div className="min-w-0">
+        <p className="text-[13px] font-semibold">
+          {alerta.tipo} <span className="font-normal text-ink-2">{alerta.severidade}</span>
+        </p>
+        <p className="text-[11px] text-ink-2">{alerta.riscos}</p>
+        <p className="text-[10px] text-ink-3">Alerta do INMET</p>
+      </div>
+    </li>
+  );
+}
+
+function CardDeCondicaoPrevista({ condicao }: { condicao: CondicaoPrevista }) {
+  return (
+    <li className="flex items-center gap-3 rounded-inner bg-brand-soft p-2.5">
+      <WeatherIcon
+        icon={condicao.icon}
+        description={condicao.label}
+        className="size-9 shrink-0"
+      />
+      <div className="min-w-0">
+        <p className="text-[13px] font-semibold">
+          {condicao.label}{" "}
+          <span className="font-normal text-ink-2">
+            {outrosDias(condicao.also_days)}
+          </span>
+        </p>
+        <p className="text-[11px] text-ink-2">
+          {diaDoCard(condicao.date)} · {condicao.detail}
+        </p>
+        {/* Em cada card, nao so no rodape do painel: um card lido sozinho —
+            e e assim que se le um aviso — precisa carregar a sua propria
+            procedencia. */}
+        <p className="text-[10px] text-ink-3">Derivado da previsao</p>
+      </div>
+    </li>
   );
 }

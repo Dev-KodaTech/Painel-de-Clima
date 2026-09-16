@@ -16,7 +16,6 @@ from datetime import date, timedelta
 import httpx
 
 from app.models import (
-    ATRIBUICAO,
     UNIDADES_DO_HISTORICO,
     DiaDoHistorico,
     Janela,
@@ -25,6 +24,7 @@ from app.models import (
     TrendsResponse,
     UnitsDoHistorico,
     Uv,
+    atribuicao,
 )
 from app.services import open_meteo, resumo
 
@@ -216,5 +216,5 @@ async def montar(
         uv=_uv(previsao_uv),
         resumo=resumo.montar(serie, comparacao),
         units=UnitsDoHistorico(**UNIDADES_DO_HISTORICO),
-        attribution=ATRIBUICAO,
+        attribution=atribuicao(),
     )

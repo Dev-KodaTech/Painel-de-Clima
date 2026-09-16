@@ -148,13 +148,62 @@ export type Units = {
 };
 
 /**
- * A pagina Condicoes: um item por dia que dispara, sem dedup nem teto.
+ * Um alerta do INMET que cobre a cidade escolhida.
  *
- * O oposto do bloco `condicoes` do painel — a mesma forma de `CondicaoPrevista`
- * (`also_days` sempre `0` aqui, porque cada dia ja e o seu proprio item), e o
- * mesmo formato de resposta de `WeatherResponse.attribution`.
+ * O que uma `CondicaoPrevista` nao pode ter: severidade oficial, janela de
+ * validade declarada por quem emitiu, e recomendacoes de seguranca. Sem
+ * `kind` — e o que distingue este tipo de `CondicaoPrevista` num slot do
+ * painel sem precisar de um campo discriminador a mais.
+ */
+export type AlertaOficial = {
+  id: string;
+  tipo: string;
+  severidade: string;
+  /** 1 a 8, crescente com a gravidade. A interface anuncia `severidade` como
+   * texto sempre — isto so ordena quando ha mais de um alerta ativo. */
+  id_severidade: number;
+  /** A cor oficial do INMET, em hexadecimal (`#FFFE00` para Perigo Potencial). */
+  cor: string;
+  inicio: string;
+  fim: string;
+  riscos: string;
+  /** As recomendacoes de seguranca — atras de um expandir, recolhidas por padrao. */
+  instrucoes: string;
+};
+
+/**
+ * Um dos dois slots do card de condicoes do painel.
+ *
+ * Uniao, e nao um campo `tipo` extra: os dois formatos ja divergem o
+ * suficiente (severidade oficial de um lado, `also_days` do outro) para que
+ * a presenca de `kind` seja o discriminador. Ver `AlertaOficial`.
+ */
+export type PainelSlot = AlertaOficial | CondicaoPrevista;
+
+/**
+ * Os tres estados da secao de alertas oficiais, nunca colapsados entre si.
+ *
+ * `"ok"` e "consultamos o INMET" — a lista pode estar vazia (sem alerta
+ * ativo) ou nao. `"fora_de_cobertura"` e "fora do Brasil, nao consultamos":
+ * a ausencia de alerta aqui nao afirma seguranca nenhuma. `"indisponivel"` e
+ * "consultamos e falhou": o mesmo cuidado, por um motivo diferente. Ver o
+ * verbete *Alerta* do `CONTEXT.md`.
+ */
+export type StatusDosAlertas = "ok" | "fora_de_cobertura" | "indisponivel";
+
+/**
+ * A pagina Condicoes: alertas oficiais do INMET e condicoes previstas.
+ *
+ * Duas secoes, nao uma lista (ADR 0007). `condicoes` e o oposto do bloco
+ * homonimo do painel — a mesma forma de `CondicaoPrevista` (`also_days`
+ * sempre `0` aqui, porque cada dia ja e o seu proprio item).
  */
 export type CondicoesResponse = {
+  /** Os avisos do INMET que cobrem a cidade escolhida. Vazia tanto com `ok`
+   * sem alerta ativo quanto com `fora_de_cobertura` ou `indisponivel` — o
+   * que ela significa depende de `status_dos_alertas`, nunca da lista sozinha. */
+  alertas: AlertaOficial[];
+  status_dos_alertas: StatusDosAlertas;
   /** Um item por dia que dispara, em ordem cronologica. Vazia numa semana calma. */
   condicoes: CondicaoPrevista[];
   attribution: string;
@@ -168,9 +217,11 @@ export type WeatherResponse = {
   /** Sete dias, comecando hoje. */
   daily: DailyPoint[];
   sun: Sun;
-  /** No maximo duas aqui — o teto e do layout deste painel, nao do dado. Lista
-   * vazia e o caminho normal, nao erro. */
-  condicoes: CondicaoPrevista[];
+  /** No maximo duas aqui — o teto e do layout deste painel, nao do dado.
+   * Alerta oficial tem precedencia sobre condicao prevista nos dois slots
+   * (ADR 0007): quando ha alerta, ele entra primeiro. Lista vazia e o
+   * caminho normal, nao erro. */
+  condicoes: PainelSlot[];
   /** Ate cinco, da mais perto para a mais longe. Pode ter menos numa cidade
    * cujas vizinhas acabam antes — Honolulu tem quatro. */
   nearby: Nearby[];

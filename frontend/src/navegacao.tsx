@@ -62,7 +62,7 @@ export const PAGINAS: Pagina[] = [
     caminho: "/condicoes",
     titulo: "Condicoes",
     oQueVem:
-      "Um item por dia que dispara uma condicao severa prevista, sem o limite de dois cards do painel.",
+      "Os alertas oficiais do INMET para a cidade escolhida, e um item por dia que dispara uma condicao severa prevista.",
     Icone: IconeLista,
   },
   {

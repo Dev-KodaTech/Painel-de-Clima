@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 import httpx
 import pytest
 
-from app.services import open_meteo
+from app.services import inmet, open_meteo
 
 
 @pytest.mark.contract
@@ -179,3 +179,37 @@ async def test_a_previsao_ainda_serve_uv():
 
     assert any(valor is not None for valor in previsao["hourly"]["uv_index"])
     assert any(valor is not None for valor in previsao["daily"]["uv_index_max"])
+
+
+@pytest.mark.contract
+@pytest.mark.anyio
+async def test_inmet_ainda_traz_os_campos_usados():
+    """Bate no `/avisos/ativos` real. O formato e proprietario e sem versao —
+    se o INMET mudar um nome de campo, e este teste que denuncia, nao
+    `test_inmet.py`, que roda contra fixtures fixas.
+    """
+    avisos = await inmet.buscar_avisos_ativos()
+
+    if not avisos:
+        pytest.skip("Nenhum aviso ativo no INMET agora — nada a conferir.")
+
+    campos = (
+        "id",
+        "id_severidade",
+        "severidade",
+        "aviso_cor",
+        "tipo",
+        "data_inicio",
+        "data_fim",
+        "riscos",
+        "instrucoes",
+        "poligono",
+        "geocodes",
+    )
+    for campo in campos:
+        assert campo in avisos[0]
+
+    # O duplo parse: `poligono` e uma string GeoJSON dentro do JSON.
+    anel = inmet.poligono_do_aviso(avisos[0])
+    assert len(anel) >= 3
+    assert all(len(ponto) == 2 for ponto in anel)

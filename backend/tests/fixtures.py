@@ -5,6 +5,8 @@ sem sufixo de fuso, `is_day` como inteiro, `weather_code` como inteiro nu, e a
 chave `results` ausente quando o geocoding nao acha nada.
 """
 
+import json
+
 #: Busca que casa uma unica cidade.
 GEOCODING_BERLIM = {
     "results": [
@@ -457,3 +459,97 @@ UV_BERLIM = {
         "uv_index_max": [3.55, 2.05, 3.40, 3.25, 2.80, 3.10, 2.95],
     },
 }
+
+
+# ---------------------------------------------------------------------------
+# INMET — avisos ativos (`GET /avisos/ativos`)
+#
+# O formato reproduz a estrutura documentada no ADR 0008: duas listas de nivel
+# superior (`hoje`, `futuro`) que se sobrepoem por `id`, `poligono` como uma
+# string GeoJSON escapada dentro do JSON, e `id_severidade`/`aviso_cor` que
+# variam com a severidade oficial. Os avisos de severidade 6 e 7 seguem o
+# formato observado ao vivo durante a investigacao do ADR; o aviso de
+# severidade 8 e **sintetico** — ver o comentario proprio abaixo.
+# ---------------------------------------------------------------------------
+
+#: O anel externo cobre o Parana e parte de SC/SP — retangulo simples, so para
+#: o teste: contem Curitiba, exclui Sao Paulo e qualquer coordenada fora do
+#: Brasil. `[lon, lat]`, a ordem que o GeoJSON usa.
+_POLIGONO_SUL = {
+    "type": "Polygon",
+    "coordinates": [
+        [
+            [-52.5, -26.5],
+            [-52.5, -24.0],
+            [-48.0, -24.0],
+            [-48.0, -26.5],
+            [-52.5, -26.5],
+        ]
+    ],
+}
+
+CURITIBA = {"latitude": -25.43, "longitude": -49.27, "country_code": "BR"}
+SAO_PAULO = {"latitude": -23.55, "longitude": -46.63, "country_code": "BR"}
+
+#: Um aviso de "Perigo Potencial" (id_severidade 6, amarelo) cobrindo o sul.
+#: Formato e cor medidos contra o feed real.
+AVISO_INMET_PERIGO_POTENCIAL = {
+    "id": "211530",
+    "id_severidade": "6",
+    "severidade": "Perigo Potencial",
+    "aviso_cor": "#FFFE00",
+    "tipo": "Chuva Intensa",
+    "data_inicio": "16/09/2026 10:00:00",
+    "data_fim": "17/09/2026 10:00:00",
+    "riscos": "Alagamentos e transtornos em rodovias",
+    "instrucoes": "Evite areas de risco de deslizamentos e alagamentos.",
+    "poligono": json.dumps(_POLIGONO_SUL),
+    "geocodes": [4106902],  # Curitiba, IBGE — so para conferencia cruzada.
+}
+
+#: Um aviso de "Perigo" (id_severidade 7, laranja), mesma regiao. Formato e
+#: cor medidos contra o feed real.
+AVISO_INMET_PERIGO = {
+    "id": "211531",
+    "id_severidade": "7",
+    "severidade": "Perigo",
+    "aviso_cor": "#FF8C00",
+    "tipo": "Tempestade",
+    "data_inicio": "16/09/2026 12:00:00",
+    "data_fim": "16/09/2026 22:00:00",
+    "riscos": "Queda de arvores e de energia eletrica, alagamentos",
+    "instrucoes": (
+        "Fique atento as mudancas bruscas no tempo e procure abrigo em "
+        "local seguro."
+    ),
+    "poligono": json.dumps(_POLIGONO_SUL),
+    "geocodes": [4106902],
+}
+
+#: **Sintetico.** Nenhum aviso de "Grande Perigo" (id_severidade 8) estava
+#: ativo durante a investigacao do ADR 0008 — o valor e a cor vermelha sao
+#: presumidos pela progressao de cor do INMET, nao confirmados por
+#: observacao. Existe para que o caminho de maior severidade tenha cobertura
+#: de teste, com a suposicao marcada em vez de escondida.
+AVISO_INMET_GRANDE_PERIGO_SINTETICO = {
+    "id": "999999",
+    "id_severidade": "8",
+    "severidade": "Grande Perigo",
+    "aviso_cor": "#FF0000",
+    "tipo": "Ciclone Extratropical",
+    "data_inicio": "16/09/2026 06:00:00",
+    "data_fim": "18/09/2026 06:00:00",
+    "riscos": "Risco a vida, destruicao generalizada",
+    "instrucoes": "Busque abrigo imediatamente e siga as orientacoes da Defesa Civil.",
+    "poligono": json.dumps(_POLIGONO_SUL),
+    "geocodes": [4106902],
+}
+
+
+def avisos_inmet(*avisos: dict, futuro: tuple[dict, ...] = ()) -> dict:
+    """Monta o payload de `/avisos/ativos` a partir de avisos soltos.
+
+    `hoje` e `futuro` como o endpoint real os separa — passar o mesmo aviso
+    nos dois exercita o dedup por `id` que `inmet.buscar_avisos_ativos` faz.
+    """
+    return {"hoje": list(avisos), "futuro": list(futuro)}
