@@ -18,17 +18,31 @@ mudança de contrato viajar escondida dentro de uma funcionalidade.
 
 **Blocked by:** None (can start immediately)
 
-- [ ] `WeatherResponse.alerts` vira `WeatherResponse.condicoes`
-- [ ] O modelo `Alerta` vira `CondicaoPrevista`, com a descrição do campo revista:
+- [x] `WeatherResponse.alerts` vira `WeatherResponse.condicoes`
+- [x] O modelo `Alerta` vira `CondicaoPrevista`, com a descrição do campo revista:
       ela hoje diz "no maximo duas", e a razão do limite é o layout do painel
-- [ ] `backend/app/services/alertas.py` vira `condicoes.py`; `derivar()` mantém o
+- [x] `backend/app/services/alertas.py` vira `condicoes.py`; `derivar()` mantém o
       nome, que continua correto
-- [ ] O tipo do frontend em `api/types.ts` acompanha, e o componente
+- [x] O tipo do frontend em `api/types.ts` acompanha, e o componente
       `CondicoesPrevistas.tsx` lê o campo novo
-- [ ] A suíte `test_alertas.py` vira `test_condicoes.py` e passa sem mudança de
+- [x] A suíte `test_alertas.py` vira `test_condicoes.py` e passa sem mudança de
       comportamento — os golden de Wellington, Miami, Innsbruck e Reykjavik
       continuam valendo, e os testes de borda de limiar (59.9/60.0 e o
       equivalente de chuva) continuam idênticos
-- [ ] Nenhuma mudança visível na Visão geral
-- [ ] Nenhum resquício de `alerts`/`Alerta` no backend ou no frontend, exceto nas
+- [x] Nenhuma mudança visível na Visão geral
+- [x] Nenhum resquício de `alerts`/`Alerta` no backend ou no frontend, exceto nas
       ADRs, que são registro histórico e não se editam para acompanhar o código
+
+## Comments
+
+Implementado. Suíte completa roda verde (326 passed; a única falha,
+`test_o_uv_usa_o_dia_da_cidade_e_nao_a_ponta_da_janela`, é pré-existente e
+não relacionada — confirmado reproduzindo em `git stash`). Frontend
+typecheca e builda limpo.
+
+Achado fora do escopo desta ficha, não corrigido aqui: `frontend/src/navegacao.tsx`
+ainda descreve a página `/condicoes` como "Condicoes previstas" / "Ainda nao
+construida" e conta seis páginas na barra — desatualizado frente ao
+`CONTEXT.md` já editado nesta sessão (que renomeia a página para "Condições",
+com duas seções, e sobe a contagem para oito). Fica para a ficha que
+efetivamente construir a página (02), já que hoje ela ainda não existe.
