@@ -147,6 +147,19 @@ export type Units = {
   distance: string;
 };
 
+/**
+ * A pagina Condicoes: um item por dia que dispara, sem dedup nem teto.
+ *
+ * O oposto do bloco `condicoes` do painel — a mesma forma de `CondicaoPrevista`
+ * (`also_days` sempre `0` aqui, porque cada dia ja e o seu proprio item), e o
+ * mesmo formato de resposta de `WeatherResponse.attribution`.
+ */
+export type CondicoesResponse = {
+  /** Um item por dia que dispara, em ordem cronologica. Vazia numa semana calma. */
+  condicoes: CondicaoPrevista[];
+  attribution: string;
+};
+
 export type WeatherResponse = {
   location: Location;
   current: Current;

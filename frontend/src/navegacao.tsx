@@ -60,9 +60,9 @@ export const PAGINAS: Pagina[] = [
   },
   {
     caminho: "/condicoes",
-    titulo: "Condicoes previstas",
+    titulo: "Condicoes",
     oQueVem:
-      "As condicoes severas derivadas da previsao, sem o limite de dois cards do painel. Ainda nao construida.",
+      "Um item por dia que dispara uma condicao severa prevista, sem o limite de dois cards do painel.",
     Icone: IconeLista,
   },
   {

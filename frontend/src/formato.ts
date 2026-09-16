@@ -63,6 +63,17 @@ export function dataCurta(data: string): string {
 }
 
 /**
+ * "Sex, 16 set" a partir de `2026-09-14`: o dia de um card de condicao, sem
+ * ambiguidade na semana.
+ *
+ * Compartilhada entre `CondicoesPrevistas` (o painel) e `Condicoes` (a
+ * pagina): os dois cards datam um dia da mesma forma.
+ */
+export function diaDoCard(data: string): string {
+  return `${diaDaSemanaCurto(data)}, ${dataCurta(data)}`;
+}
+
+/**
  * A hora de um timestamp como numero (0-23), para posicionar no grafico.
  *
  * Recorte de texto, como todo o resto deste modulo: a hora exibida e a da

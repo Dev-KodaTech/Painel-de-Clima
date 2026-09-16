@@ -13,18 +13,13 @@
  */
 
 import type { CondicaoPrevista } from "../api/types";
-import { dataCurta, diaDaSemanaCurto } from "../formato";
+import { diaDoCard } from "../formato";
 import { Painel } from "./Painel";
 import { WeatherIcon } from "./WeatherIcon";
 
 type Props = {
   condicoes: CondicaoPrevista[];
 };
-
-/** "Sex, 16 set" — o dia que o card representa, sem ambiguidade na semana. */
-function quando(date: string): string {
-  return `${diaDaSemanaCurto(date)}, ${dataCurta(date)}`;
-}
 
 /**
  * "(+4 dias)" — os outros dias da mesma categoria, que nao viraram cards.
@@ -84,7 +79,7 @@ export function CondicoesPrevistas({ condicoes }: Props) {
                   </span>
                 </p>
                 <p className="text-[11px] text-ink-2">
-                  {quando(alerta.date)} · {alerta.detail}
+                  {diaDoCard(alerta.date)} · {alerta.detail}
                 </p>
                 {/* Em cada card, nao so no rodape do painel: um card lido
                     sozinho — e e assim que se le um aviso — precisa carregar a

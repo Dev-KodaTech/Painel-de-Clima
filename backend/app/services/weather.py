@@ -8,6 +8,7 @@ from app.models import (
     UNIDADES_PADRAO,
     Cidade,
     CidadeEscolhida,
+    CondicoesResponse,
     Current,
     DailyPoint,
     HourlyPoint,
@@ -107,6 +108,22 @@ async def montar_painel(
     )
 
     return _montar(previsao, cidade, _vizinhas(selecionadas, atuais))
+
+
+async def montar_condicoes(
+    client: httpx.AsyncClient, latitude: float, longitude: float
+) -> CondicoesResponse:
+    """A pagina Condicoes: um item por dia que dispara, para uma coordenada.
+
+    `buscar_previsao` e cacheado por coordenada arredondada — a mesma chave
+    que `/api/weather` populou. Uma cidade cujo painel ja abriu nao gera
+    segunda chamada a API externa ao abrir esta pagina dentro do TTL.
+    """
+    previsao = await open_meteo.buscar_previsao(client, latitude, longitude)
+    return CondicoesResponse(
+        condicoes=condicoes.derivar_por_dia(previsao["daily"]),
+        attribution=ATRIBUICAO,
+    )
 
 
 def _horas_do_dia(hourly: dict, dia: str) -> list[HourlyPoint]:

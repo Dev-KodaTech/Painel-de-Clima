@@ -9,6 +9,7 @@ import type {
   Cidade,
   CidadeDoPainel,
   CidadesResponse,
+  CondicoesResponse,
   Conta,
   Janela,
   QuemSouResponse,
@@ -213,6 +214,25 @@ export async function buscarHistorico(
   });
 
   return pegar<TrendsResponse>(`/api/trends?${params}`, sinal);
+}
+
+/**
+ * As condicoes severas previstas, um item por dia que dispara.
+ *
+ * Endpoint proprio, buscado na pagina Condicoes (ADR 0003: so uma pagina le,
+ * entao vai nela). So a coordenada viaja, como em `buscarHistorico` — nada
+ * aqui exibe o nome da cidade.
+ */
+export async function buscarCondicoes(
+  cidade: Pick<CidadeDoPainel, "latitude" | "longitude">,
+  sinal?: AbortSignal,
+): Promise<CondicoesResponse> {
+  const params = new URLSearchParams({
+    latitude: String(cidade.latitude),
+    longitude: String(cidade.longitude),
+  });
+
+  return pegar<CondicoesResponse>(`/api/condicoes?${params}`, sinal);
 }
 
 /**

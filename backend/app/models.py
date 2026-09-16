@@ -231,6 +231,24 @@ class WeatherResponse(BaseModel):
     attribution: str
 
 
+class CondicoesResponse(BaseModel):
+    """A pagina Condicoes: um item por dia que dispara, sem dedup nem teto.
+
+    O oposto do bloco `condicoes` do painel. La o teto e o dedup existem para
+    caber em dois cards de altura fixa; aqui nao ha layout a proteger, entao a
+    semana de Wellington chega como cinco itens de vento, um por dia.
+    """
+
+    condicoes: list[CondicaoPrevista] = Field(
+        description=(
+            "Um item por dia que dispara uma categoria, em ordem cronologica. "
+            "Um dia que dispara duas categorias produz dois itens. Lista "
+            "vazia e o caminho normal numa semana calma, nao erro."
+        )
+    )
+    attribution: str
+
+
 #: As tres janelas temporais que a pagina Tendencia analisa. Conjunto fechado,
 #: e nao um numero de dias livre: `janela` entra por parametro de URL, e um
 #: valor livre viraria aritmetica de data com entrada arbitraria — "6000d" e

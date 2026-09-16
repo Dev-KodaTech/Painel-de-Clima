@@ -165,3 +165,39 @@ def derivar(daily: dict) -> list[CondicaoPrevista]:
     # chegou a tres categorias.
     cards.sort(key=lambda card: card.date)
     return cards[:MAXIMO_DE_CARDS]
+
+
+def _item_do_dia(categoria: _Categoria, daily: dict, indice: int) -> CondicaoPrevista:
+    return CondicaoPrevista(
+        kind=categoria.kind,
+        date=daily["time"][indice],
+        label=categoria.label,
+        icon=categoria.icon,
+        detail=categoria.detalhe(categoria.valor(daily, indice)),
+        # A pagina mostra um item por dia — nao ha outros dias a contar aqui,
+        # ao contrario do card do painel.
+        also_days=0,
+    )
+
+
+def derivar_por_dia(daily: dict) -> list[CondicaoPrevista]:
+    """As condicoes severas de uma semana: **um item por dia que dispara**.
+
+    O contrario do dedup de `derivar()`. La, `also_days` admite que o dado por
+    dia existe e o descarta, para caber em dois cards de altura fixa. Aqui nao
+    ha layout a proteger: a pagina Condicoes quer a semana de Wellington como
+    cinco itens de vento com data e rajada de cada um, nao um card dizendo
+    "(+4 dias)".
+
+    Sem teto de quantidade e sem dedup por categoria — um dia que dispara duas
+    categorias produz dois itens. Os limiares sao os mesmos de `derivar()`,
+    porque um segundo conjunto de constantes faria o mesmo dia ser severo numa
+    pagina e calmo na outra.
+    """
+    itens = [
+        _item_do_dia(categoria, daily, indice)
+        for categoria in CATEGORIAS
+        for indice in _dias_que_disparam(categoria, daily)
+    ]
+    itens.sort(key=lambda item: item.date)
+    return itens
