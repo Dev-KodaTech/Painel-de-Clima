@@ -24,6 +24,7 @@ from tests.fixtures import (
     ARQUIVO_BERLIM,
     ARQUIVO_BERLIM_ANTERIOR,
     FORECAST_BERLIM,
+    FORECAST_DEZESSEIS_BERLIM,
     UV_BERLIM,
     atual_de_varias,
 )
@@ -298,3 +299,68 @@ def test_passado_o_ttl_longo_o_ano_anterior_tambem_e_rebuscado(relogio):
     client.get("/api/trends", params=TENDENCIA_BERLIM)
 
     assert chamadas["passado"] == 2
+
+
+# ---------------------------------------------------------------------------
+# O horizonte de dezesseis dias da pagina Calendario.
+
+
+HORIZONTE_BERLIM = {"latitude": 52.52437, "longitude": 13.41053}
+
+
+def _mockar_as_duas_previsoes():
+    """As duas chamadas de previsao, contadas separadamente por `forecast_days`.
+
+    Elas batem na mesma URL e so se distinguem pelos parametros — que e
+    exatamente o que este arquivo precisa provar: que as **chaves de cache** nao
+    colidem, ainda que a URL seja uma so.
+    """
+    sete, _ = _mockar_as_duas_chamadas()
+    dezesseis = respx.get(FORECAST_URL, params__contains={"forecast_days": "16"}).mock(
+        return_value=httpx.Response(200, json=FORECAST_DEZESSEIS_BERLIM)
+    )
+    return sete, dezesseis
+
+
+@respx.mock
+def test_duas_consultas_ao_horizonte_produzem_uma_chamada_externa(relogio):
+    """O caso que justifica o cache, na chamada mais cara do app."""
+    _, dezesseis = _mockar_as_duas_previsoes()
+
+    assert client.get("/api/horizonte", params=HORIZONTE_BERLIM).status_code == 200
+    assert client.get("/api/horizonte", params=HORIZONTE_BERLIM).status_code == 200
+
+    assert dezesseis.call_count == 1
+
+
+@respx.mock
+def test_o_horizonte_nao_colide_com_a_previsao_de_sete_dias(relogio):
+    """**A chave tem prefixo proprio, e e isto que o prova.**
+
+    As duas chamadas partem da mesma coordenada e batem na mesma URL. Sem
+    prefixos distintos, pedir o painel e depois os dezesseis dias devolveria os
+    sete guardados — e a grade perderia nove dias sem erro algum, que e o pior
+    modo de falhar.
+    """
+    sete, dezesseis = _mockar_as_duas_previsoes()
+
+    painel = client.get("/api/weather", params=BERLIM)
+    grade = client.get("/api/horizonte", params=HORIZONTE_BERLIM)
+
+    assert sete.call_count == 1
+    assert dezesseis.call_count == 1
+    # E cada uma devolveu o seu: sete dias no painel, dezesseis na grade.
+    assert len(painel.json()["daily"]) == 7
+    assert len(grade.json()["dias"]) == 16
+
+
+@respx.mock
+def test_apos_o_ttl_o_horizonte_volta_a_bater_na_api(relogio):
+    """Familia de dez minutos, como as demais: e previsao, e ela muda."""
+    _, dezesseis = _mockar_as_duas_previsoes()
+
+    client.get("/api/horizonte", params=HORIZONTE_BERLIM)
+    relogio.avancar(601)
+    client.get("/api/horizonte", params=HORIZONTE_BERLIM)
+
+    assert dezesseis.call_count == 2

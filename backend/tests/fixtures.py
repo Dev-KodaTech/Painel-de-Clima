@@ -553,3 +553,123 @@ def avisos_inmet(*avisos: dict, futuro: tuple[dict, ...] = ()) -> dict:
     nos dois exercita o dedup por `id` que `inmet.buscar_avisos_ativos` faz.
     """
     return {"hoje": list(avisos), "futuro": list(futuro)}
+
+
+# ---------------------------------------------------------------------------
+# Horizonte longo: a resposta de dezesseis dias da pagina Calendario.
+
+
+#: Os dezesseis dias, a partir do mesmo dia corrente das demais fixtures.
+DIAS_DO_CALENDARIO = [
+    "2026-09-14", "2026-09-15", "2026-09-16", "2026-09-17",
+    "2026-09-18", "2026-09-19", "2026-09-20", "2026-09-21",
+    "2026-09-22", "2026-09-23", "2026-09-24", "2026-09-25",
+    "2026-09-26", "2026-09-27", "2026-09-28", "2026-09-29",
+]
+
+#: A previsao de dezesseis dias de Berlim, para a pagina Calendario.
+#:
+#: Os sete primeiros dias repetem os valores que `FORECAST_BERLIM` ja traz —
+#: sao a mesma cidade na mesma semana, servida pelo ICON —, e do oitavo em
+#: diante os valores sao sinteticos.
+#:
+#: **A costura do dia 8 nao esta representada aqui, e nao da para representa-la
+#: numa semana so.** O degrau de 4,7 °C que o ADR 0010 mediu e a *discordancia
+#: entre dois modelos sobre o mesmo dia* — ICON dizia 27,4 °C e ECMWF dizia
+#: 22,7 °C para o dia 7 —, e nao um salto entre dias vizinhos. Numa serie unica
+#: ele e invisivel: a variacao normal de um dia para o outro ja e maior (aqui,
+#: 17,2 -> 24,7 °C do dia 1 para o 2, dentro do horizonte curto). Por isso
+#: nenhum teste afirma nada sobre o salto; o que se testa e a **fronteira
+#: declarada**, que e o que o payload de fato carrega.
+#:
+#: **Sem bloco `hourly`**, como a chamada real: a pagina e diaria, e dezesseis
+#: dias de horas seriam 384 pontos que ninguem le.
+#:
+#: `precipitation_probability_max` vem em **todos** os dias, inclusive nos sete
+#: primeiros: e o unico canal de incerteza gratuito do endpoint padrao, e a
+#: interface so o exibe no horizonte longo — mas o dado e o mesmo nos dois.
+#:
+#: **Esta e a cidade completa**, que e um caso e nao o caso: a borda real vem
+#: incompleta em parte das cidades. Ver `FORECAST_DEZESSEIS_COM_BORDA_INCOMPLETA`.
+FORECAST_DEZESSEIS_BERLIM = {
+    "latitude": 52.52,
+    "longitude": 13.419998,
+    "generationtime_ms": 0.41,
+    "utc_offset_seconds": 7200,
+    "timezone": "Europe/Berlin",
+    "timezone_abbreviation": "GMT+2",
+    "elevation": 40.0,
+    "daily_units": {
+        "time": "iso8601",
+        "weather_code": "wmo code",
+        "temperature_2m_max": "°C",
+        "temperature_2m_min": "°C",
+        "sunrise": "iso8601",
+        "sunset": "iso8601",
+        "precipitation_sum": "mm",
+        "wind_gusts_10m_max": "km/h",
+        "precipitation_probability_max": "%",
+    },
+    "daily": {
+        "time": DIAS_DO_CALENDARIO,
+        "weather_code": [
+            3, 3, 95, 3, 3, 61, 3, 80,
+            61, 3, 2, 80, 61, 3, 2, 61,
+        ],
+        "temperature_2m_max": [
+            17.2, 24.7, 20.4, 19.2, 19.8, 16.8, 17.8, 22.5,
+            21.1, 20.4, 19.6, 18.9, 19.3, 20.8, 21.4, 19.7,
+        ],
+        "temperature_2m_min": [
+            13.7, 11.8, 15.0, 12.7, 13.6, 10.9, 13.3, 14.8,
+            13.9, 12.6, 11.8, 12.4, 13.1, 12.9, 13.6, 12.2,
+        ],
+        "sunrise": [f"{dia}T06:40" for dia in DIAS_DO_CALENDARIO],
+        "sunset": [f"{dia}T19:20" for dia in DIAS_DO_CALENDARIO],
+        "precipitation_sum": [
+            0.0, 0.0, 6.0, 0.0, 0.0, 2.4, 0.0, 8.1,
+            3.2, 0.0, 0.0, 5.4, 2.8, 0.0, 0.0, 1.9,
+        ],
+        "wind_gusts_10m_max": [
+            32.4, 28.1, 41.0, 25.9, 27.4, 38.2, 30.6, 44.3,
+            36.7, 29.2, 26.6, 40.7, 35.3, 28.8, 25.2, 33.1,
+        ],
+        "precipitation_probability_max": [
+            0, 0, 68, 3, 0, 45, 10, 72,
+            55, 18, 8, 61, 48, 12, 5, 39,
+        ],
+    },
+}
+
+
+#: **A borda incompleta**, gravada do servico real em 2026-09-16 (Berlim).
+#:
+#: A API devolve as dezesseis **datas** e deixa os *valores* da ponta nulos: o
+#: ultimo dia sem nada, e a probabilidade faltando tambem no penultimo. Medido
+#: no mesmo instante, Sao Paulo e Wellington vinham completas e Cairo tinha so
+#: o ultimo dia nulo — depende da cidade e da hora local, nao e um estado que a
+#: fixture golden possa representar sozinha.
+#:
+#: Existe porque a golden esconde exatamente este caso: com os dezesseis dias
+#: preenchidos, campos obrigatorios passam no teste e quebram em producao. Foi
+#: o que aconteceu — e o teste de contrato que denunciou.
+FORECAST_DEZESSEIS_COM_BORDA_INCOMPLETA = {
+    **FORECAST_DEZESSEIS_BERLIM,
+    "daily": {
+        **FORECAST_DEZESSEIS_BERLIM["daily"],
+        "weather_code": FORECAST_DEZESSEIS_BERLIM["daily"]["weather_code"][:15] + [None],
+        "temperature_2m_max": (
+            FORECAST_DEZESSEIS_BERLIM["daily"]["temperature_2m_max"][:15] + [None]
+        ),
+        "temperature_2m_min": (
+            FORECAST_DEZESSEIS_BERLIM["daily"]["temperature_2m_min"][:15] + [None]
+        ),
+        "precipitation_sum": (
+            FORECAST_DEZESSEIS_BERLIM["daily"]["precipitation_sum"][:15] + [None]
+        ),
+        "precipitation_probability_max": (
+            FORECAST_DEZESSEIS_BERLIM["daily"]["precipitation_probability_max"][:14]
+            + [None, None]
+        ),
+    },
+}

@@ -14,6 +14,8 @@ from app.models import (
     CondicoesResponse,
     Current,
     DailyPoint,
+    DiaDoHorizonte,
+    HorizonteResponse,
     HourlyPoint,
     Location,
     Nearby,
@@ -163,6 +165,65 @@ async def montar_condicoes(
         condicoes=condicoes.derivar_por_dia(previsao["daily"]),
         attribution=atribuicao(com_inmet=bool(alertas)),
     )
+
+
+async def montar_horizonte(
+    client: httpx.AsyncClient, latitude: float, longitude: float
+) -> HorizonteResponse:
+    """Os dezesseis dias da pagina Calendario, com a fronteira ja declarada.
+
+    Chamada propria e cache proprio: `buscar_horizonte` nao reaproveita a
+    entrada de sete dias de `buscar_previsao`, porque pede outro conjunto de
+    variaveis. Abrir o painel e depois esta pagina custa duas chamadas externas,
+    e e o correto — a alternativa seria a grade receber sete dias.
+    """
+    horizonte = await open_meteo.buscar_horizonte(client, latitude, longitude)
+
+    return HorizonteResponse(
+        dias=_dias_do_horizonte(horizonte["daily"]),
+        # Pela funcao, e nao pela constante: o padrao que a pagina Noticias
+        # estabeleceu. Sem INMET — esta pagina nao consulta alertas, e nomea-lo
+        # creditaria fornecedor que nao forneceu nada.
+        attribution=atribuicao(),
+    )
+
+
+def _dias_do_horizonte(daily: dict) -> list[DiaDoHorizonte]:
+    """Os dezesseis dias, cada um declarando a que horizonte pertence.
+
+    **O corte e feito aqui, e o payload carrega o resultado.** Do oitavo dia em
+    diante o icone e a descricao nao sao montados: a fonte ja e outro modelo
+    (ECMWF no lugar do ICON), e um ceu desenhado com a confianca do dia 2 sobre
+    o dado do dia 14 e a afirmacao que o ADR 0010 existe para nao fazer.
+
+    A probabilidade de precipitacao vai nos dezesseis: e o unico canal de
+    incerteza gratuito, e quem decide onde exibi-la e a interface.
+    """
+    dias = []
+    for indice, data in enumerate(daily["time"]):
+        longo = indice >= open_meteo.PRIMEIRO_DIA_DO_HORIZONTE_LONGO
+        codigo = daily["weather_code"][indice]
+        # No horizonte longo os tres ficam `None` juntos: o codigo WMO e o que
+        # produz icone e descricao, e envia-lo sozinho seria mandar a materia
+        # prima do que se acabou de decidir nao exibir.
+        description, icon = (None, None) if longo else traduzir(codigo, is_day=True)
+
+        dias.append(
+            DiaDoHorizonte(
+                date=data,
+                horizonte="longo" if longo else "curto",
+                high=daily["temperature_2m_max"][indice],
+                low=daily["temperature_2m_min"][indice],
+                precipitation_mm=daily["precipitation_sum"][indice],
+                precipitation_probability_max=daily["precipitation_probability_max"][
+                    indice
+                ],
+                weather_code=None if longo else codigo,
+                description=description,
+                icon=icon,
+            )
+        )
+    return dias
 
 
 async def _alertas_oficiais(

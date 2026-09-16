@@ -76,6 +76,85 @@ async def test_forecast_ainda_traz_os_campos_usados():
 
 @pytest.mark.contract
 @pytest.mark.anyio
+async def test_o_horizonte_de_dezesseis_dias_ainda_e_aceito():
+    """**O teste que avisa quando a fronteira do dia 8 sai do lugar.**
+
+    O ADR 0010 mediu a troca de modelo em setembro de 2026: ICON ate o dia 7,
+    ECMWF do 8 em diante. A Open-Meteo **nao documenta** esse encadeamento, e
+    pode muda-lo sem avisar. Se mudar, `PRIMEIRO_DIA_DO_HORIZONTE_LONGO` deixa
+    de casar com a troca real e o app passa a desenhar a fronteira no lugar
+    errado — **sem erro nenhum**, que e o pior modo de falhar.
+
+    O que da para verificar automaticamente e o que sustenta a pagina: que
+    dezesseis dias continuam sendo aceitos (o teto ja e o maximo — 17 responde
+    `400`), e que a probabilidade de precipitacao continua vindo preenchida
+    **ate o inicio do horizonte longo**, onde ela substitui o numero seco. Se
+    ela sumir dali, o lado longo da grade fica sem informacao alguma e a decisao
+    de esconder o icone perde a contrapartida.
+
+    **A borda vem incompleta, e isso e esperado**: medido em setembro de 2026,
+    o ultimo dia pode trazer `null` em todas as variaveis e a probabilidade pode
+    faltar nos dois ultimos, variando com a cidade e a hora local. Por isso a
+    verificacao para no primeiro dia do horizonte longo em vez de exigir a
+    janela inteira — o que importa e que o lado longo *comeca* com dado.
+
+    O mapeamento de modelos em si nao e verificavel aqui: exigiria uma sondagem
+    comparando `best_match` com cada modelo, que e o trabalho que o ADR 0010
+    registra e que quem duvidar precisa refazer a mao.
+    """
+    async with httpx.AsyncClient() as client:
+        horizonte = await open_meteo.buscar_horizonte(client, 52.52, 13.42)
+
+    diario = horizonte["daily"]
+
+    # As dezesseis **datas** vem sempre, ainda que os valores da ponta faltem —
+    # e a contagem que a grade e a fronteira do dia 8 assumem. Uma janela mais
+    # curta nao levantaria erro nenhum no backend: viraria uma grade menor, com
+    # a fronteira ainda no lugar certo e nove dias a menos sem explicacao.
+    assert len(diario["time"]) == open_meteo.DIAS_DO_HORIZONTE
+    for campo in open_meteo.VARIAVEIS_DO_HORIZONTE:
+        assert campo in diario
+
+    # O horizonte curto inteiro vem preenchido: e o que a grade julga e exibe
+    # com icone, e um nulo aqui seria outra historia.
+    primeiro_longo = open_meteo.PRIMEIRO_DIA_DO_HORIZONTE_LONGO
+    for campo in ("temperature_2m_max", "temperature_2m_min", "weather_code"):
+        assert all(valor is not None for valor in diario[campo][:primeiro_longo])
+
+    # E a probabilidade cobre o horizonte longo, que e onde ela substitui o
+    # icone. **Ate a vespera da borda**, e nao so o primeiro dia: se ela sumisse
+    # do meio, a celula distante ficaria sem conteudo algum e este teste
+    # continuaria verde — a story 6 perderia o que exibe, em silencio. Os dois
+    # ultimos dias ficam de fora porque a borda vem incompleta por medicao.
+    probabilidades = diario["precipitation_probability_max"]
+    assert all(valor is not None for valor in probabilidades[primeiro_longo:-2])
+
+
+@pytest.mark.contract
+@pytest.mark.anyio
+async def test_dezessete_dias_ainda_sao_recusados():
+    """O teto de 16 e da API, e o ADR 0010 se apoia nele.
+
+    Se um dia ela passar a aceitar mais, a decisao de mostrar dezesseis deixa de
+    ser "o teto do endpoint" e volta a ser uma escolha a justificar.
+    """
+    async with httpx.AsyncClient() as client:
+        resposta = await client.get(
+            open_meteo.FORECAST_URL,
+            params={
+                "latitude": 52.52,
+                "longitude": 13.42,
+                "daily": "temperature_2m_max",
+                "timezone": "auto",
+                "forecast_days": open_meteo.DIAS_DO_HORIZONTE + 1,
+            },
+        )
+
+    assert resposta.status_code == 400
+
+
+@pytest.mark.contract
+@pytest.mark.anyio
 async def test_multi_coordenada_ainda_devolve_array_na_ordem_de_entrada():
     """A chamada das vizinhas: um array, na ordem pedida, com fuso por cidade.
 

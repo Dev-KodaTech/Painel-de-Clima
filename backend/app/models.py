@@ -362,6 +362,89 @@ class CondicoesResponse(BaseModel):
     attribution: str
 
 
+#: Os dois lados da fronteira do dia 8. **Um par, e nao um nome so**: "previsao
+#: estendida" prometeria extensao sem dizer que a qualidade cai, que e a metade
+#: que importa (CONTEXT.md, ADR 0010).
+Horizonte = Literal["curto", "longo"]
+
+
+class DiaDoHorizonte(BaseModel):
+    """Um dia da grade da pagina Calendario, de qualquer um dos dois lados.
+
+    **Um modelo so para os dois horizontes, com campos opcionais** — e nao dois
+    modelos numa uniao. A grade desenha dezesseis celulas do mesmo tipo, e o que
+    muda entre elas e o que veio preenchido; duas classes fariam o frontend
+    ramificar antes de renderizar o que e comum.
+
+    `icon` e `description` sao `None` no horizonte longo, e a ausencia e a
+    regra: o backend **nao envia o que a interface nao deve exibir**. Manda-los
+    e confiar que o frontend os ignore repetiria o erro do campo `alerts` do
+    ADR 0001 — o dado sugere um uso que a regra proibe.
+
+    **Maxima, minima e chuva sao opcionais pela mesma razao que em
+    `DiaDoHistorico`: a borda vem incompleta.** Medido contra o servico real em
+    setembro de 2026 — a API devolve as dezesseis **datas** sempre, mas os
+    *valores* do ultimo dia (e a probabilidade dos dois ultimos) podem vir
+    `null`, variando com a cidade e com a hora local: Berlim e Cairo ja tinham
+    passado a virada e traziam nulos, Sao Paulo e Wellington nao. Declara-los
+    obrigatorios fazia a resposta inteira falhar na validacao e a pagina abrir
+    em erro — para uma celula faltando na ponta da grade.
+
+    Descartar o dia incompleto seria pior: a grade perderia uma celula sem
+    dizer por que, e a fronteira do dia 8 deixaria de casar com a contagem.
+    O dia vem, e a interface omite o que nao veio.
+    """
+
+    date: str = Field(description="Data local da cidade (`2026-09-14`), sem horario.")
+    horizonte: Horizonte = Field(
+        description=(
+            "A que lado da fronteira do dia 8 este dia pertence. **Campo "
+            "declarado, e nao regra de indice que o frontend redescobre**: se a "
+            "Open-Meteo mudar o encadeamento de modelos, o ajuste e no backend "
+            "e nao em dois lugares que precisariam concordar."
+        )
+    )
+    high: float | None = None
+    low: float | None = None
+    precipitation_mm: float | None = None
+    precipitation_probability_max: int | None = Field(
+        default=None,
+        description=(
+            "Probabilidade maxima de precipitacao do dia, em %. Pedida para os "
+            "**dezesseis** dias; a interface so a exibe no horizonte longo, "
+            "onde substitui o numero seco — mas o dado e o mesmo dos dois "
+            "lados. E o unico canal de incerteza que o endpoint padrao serve de "
+            "graca: nao ha spread de temperatura (ADR 0010).\n\n"
+            "`null` nos ultimos dias da janela em parte das cidades, medido "
+            "contra o servico real — e o dado que falta, nao o dia. A celula "
+            "distante fica entao sem numero algum para mostrar."
+        ),
+    )
+    weather_code: int | None = Field(
+        default=None, description="Ausente no horizonte longo, com `icon` e `description`."
+    )
+    description: str | None = None
+    icon: str | None = None
+
+
+class HorizonteResponse(BaseModel):
+    """Os dezesseis dias da pagina Calendario.
+
+    Sem `location` e sem `units`: a pagina ja monta o cabecalho a partir do
+    painel, como `/api/trends` e `/api/condicoes` tambem fazem.
+    """
+
+    dias: list[DiaDoHorizonte] = Field(
+        description=(
+            "Os dezesseis dias em ordem cronologica, comecando no dia corrente. "
+            "Dezesseis e o teto do endpoint da Open-Meteo, nao uma escolha de "
+            "produto sobre trinta (ADR 0010). Os sete primeiros sao horizonte "
+            "curto e trazem icone; do oitavo em diante nao."
+        )
+    )
+    attribution: str
+
+
 class Noticia(BaseModel):
     """Uma materia de clima ou meio ambiente, vinda de feed publico.
 

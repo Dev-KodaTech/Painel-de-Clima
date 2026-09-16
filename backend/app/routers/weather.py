@@ -3,7 +3,13 @@
 import httpx
 from fastapi import APIRouter, HTTPException, Query
 
-from app.models import CidadeEscolhida, CidadesResponse, CondicoesResponse, WeatherResponse
+from app.models import (
+    CidadeEscolhida,
+    CidadesResponse,
+    CondicoesResponse,
+    HorizonteResponse,
+    WeatherResponse,
+)
 from app.services import weather
 from app.services.open_meteo import OpenMeteoIndisponivel
 
@@ -107,6 +113,28 @@ async def weather_endpoint(
     async with httpx.AsyncClient() as client:
         try:
             return await weather.montar_painel(client, cidade)
+        except OpenMeteoIndisponivel as erro:
+            raise HTTPException(status_code=503, detail=MSG_INDISPONIVEL) from erro
+
+
+@router.get("/horizonte", response_model=HorizonteResponse)
+async def horizonte_endpoint(
+    latitude: float = Query(ge=-90, le=90),
+    longitude: float = Query(ge=-180, le=180),
+) -> HorizonteResponse:
+    """Os dezesseis dias da pagina Calendario, com a fronteira do dia 8.
+
+    So a coordenada, como `/api/trends`: a pagina nao exibe o nome da cidade —
+    quem o mostra e o cabecalho, que ja o tem do painel.
+
+    **Nao reaproveita o cache de `/api/weather`**, ao contrario de
+    `/api/condicoes`: aquele guarda sete dias com outro conjunto de variaveis, e
+    esta chamada pede dezesseis mais a probabilidade de precipitacao. Abrir o
+    painel nao poupa esta consulta, e o inverso tambem nao.
+    """
+    async with httpx.AsyncClient() as client:
+        try:
+            return await weather.montar_horizonte(client, latitude, longitude)
         except OpenMeteoIndisponivel as erro:
             raise HTTPException(status_code=503, detail=MSG_INDISPONIVEL) from erro
 

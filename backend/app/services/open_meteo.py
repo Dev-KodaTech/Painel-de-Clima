@@ -117,6 +117,93 @@ async def buscar_previsao(
     )
 
 
+#: Quantos dias a pagina Calendario pede. **Dezesseis e o teto da API**: acima
+#: disso ela recusa com `"Forecast days is invalid. Allowed range 0 to 16."`.
+#:
+#: Trinta dias nao foram recusados por limite tecnico — o ensemble de 35 dias
+#: existe e e gratuito —, e sim porque nao tem `weather_code` e cai para ~50 km
+#: de resolucao. Ver ADR 0010.
+DIAS_DO_HORIZONTE = 16
+
+#: **O primeiro dia do horizonte longo.** Indice no bloco diario, contado de
+#: zero: o dia 8 da grade.
+#:
+#: Nao e preferencia de layout. E onde a Open-Meteo troca de modelo no
+#: `best_match` — ICON (2-11 km) ate o dia 7, ECMWF IFS 0,25° (~25 km) do 8 em
+#: diante —, e a emenda **aparece no dado**: para o mesmo dia, ICON dizia
+#: 27,4 °C e ECMWF dizia 22,7 °C, 4,7 °C de desacordo medido na costura.
+#: Desenhar os dezesseis como uma curva so exibiria esse degrau como mudanca de
+#: tempo, que ele nao e.
+#:
+#: **O encadeamento nao e documentado pela Open-Meteo** — foi descoberto
+#: comparando `best_match` com cada modelo, em setembro de 2026 (ADR 0010). Se
+#: ela mudar a emenda, esta constante deixa de casar com a troca real e o app
+#: desenha a fronteira no lugar errado **sem erro nenhum**, que e pior do que
+#: falhar. Quem avisa e o teste de contrato marcado em `test_contract.py`.
+PRIMEIRO_DIA_DO_HORIZONTE_LONGO = 7
+
+#: As variaveis diarias do horizonte: as sete do painel mais a probabilidade de
+#: precipitacao.
+#:
+#: `precipitation_probability_max` e o **unico canal de incerteza gratuito** do
+#: endpoint padrao — nao existe `temperature_2m_max_spread` aqui, e obte-lo
+#: exigiria o ensemble e o calculo sobre `_member01..31` a mao. E por isso que o
+#: horizonte longo exibe a probabilidade no lugar do numero seco: e a unica
+#: incerteza honesta disponivel sem trocar de API (ADR 0010).
+VARIAVEIS_DO_HORIZONTE = (*VARIAVEIS_DIARIAS, "precipitation_probability_max")
+
+
+async def buscar_horizonte(
+    client: httpx.AsyncClient, latitude: float, longitude: float
+) -> dict:
+    """Os dezesseis dias de uma coordenada, para a pagina Calendario.
+
+    Chamada **nova**, e nao `forecast_days=16` em `buscar_previsao`: aquela
+    serve cinco paginas que nao leem o dia 12, e engorda-la faria todas pagarem
+    pelos nove dias extras. Mesmo raciocinio do ADR 0003 e da separacao de
+    `buscar_uv`.
+
+    **Sem bloco `hourly`**: a pagina e diaria, e dezesseis dias de horas seriam
+    384 pontos que ninguem le.
+
+    Cacheada na familia de dez minutos com **prefixo proprio**: a chave nao pode
+    colidir com `previsao:`, que guarda sete dias com outro conjunto de
+    variaveis. Colidindo, a grade receberia sete dias em vez de dezesseis sem
+    erro algum.
+    """
+    async def buscar() -> dict:
+        payload = await _get(
+            client,
+            FORECAST_URL,
+            params={
+                "latitude": latitude,
+                "longitude": longitude,
+                "daily": ",".join(VARIAVEIS_DO_HORIZONTE),
+                "timezone": "auto",
+                "forecast_days": DIAS_DO_HORIZONTE,
+            },
+        )
+
+        # **A janela curta e indisponibilidade, nao meia pagina.** Os valores da
+        # borda podem faltar — e esperado, e o payload os carrega como nulos —,
+        # mas as dezesseis *datas* nao: a grade e a fronteira do dia 8 contam
+        # com elas. Sem esta guarda, uma resposta truncada viraria uma grade
+        # menor, com a fronteira ainda no lugar certo e dias faltando sem
+        # explicacao — o mesmo modo de falhar em silencio que a chave de cache
+        # com prefixo proprio existe para impedir.
+        if len(payload["daily"]["time"]) != DIAS_DO_HORIZONTE:
+            raise OpenMeteoIndisponivel(
+                f"a previsao devolveu {len(payload['daily']['time'])} dias, "
+                f"e a grade precisa de {DIAS_DO_HORIZONTE}"
+            )
+
+        return payload
+
+    return await cache_do_processo.atual().obter(
+        chave_de_coordenada("horizonte", latitude, longitude), buscar
+    )
+
+
 #: As variaveis das vizinhas: **apenas** `current`, e dentro dele so o que a
 #: tabela exibe. A API aplica as variaveis pedidas a *todas* as coordenadas da
 #: requisicao, entao nao ha como pedir "tudo para a principal, so temperatura
