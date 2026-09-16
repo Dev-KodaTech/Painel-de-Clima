@@ -30,3 +30,18 @@ def database_url() -> str:
     esta instalado, e o erro fala de um pacote que ninguem pediu.
     """
     return os.environ.get("DATABASE_URL", URL_DO_BANCO_EM_DEV)
+
+
+#: O ambiente em que o processo roda. So `desenvolvimento` muda alguma coisa.
+AMBIENTE_DE_DESENVOLVIMENTO = "desenvolvimento"
+
+
+def em_desenvolvimento() -> bool:
+    """Se o processo roda em desenvolvimento, de `AMBIENTE`.
+
+    O padrao e **producao**, e nao o contrario, porque quem consome isto e a
+    flag `Secure` do cookie de sessao: um padrao inseguro seria um deploy que
+    esquece a variavel e serve a sessao em claro, e o esquecimento oposto so
+    custa a sessao no `http://localhost`.
+    """
+    return os.environ.get("AMBIENTE", "producao") == AMBIENTE_DE_DESENVOLVIMENTO

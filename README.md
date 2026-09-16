@@ -92,9 +92,42 @@ esconderia erros de SQL.
 |---|---|
 | `GET /api/cities?q=` | Candidatas de cidade para desambiguação, com estado, país e população. Nada encontrado devolve `200` com lista vazia. |
 | `GET /api/weather?latitude=&longitude=&name=` | O painel da cidade escolhida. A identidade da cidade vem de `/api/cities` e viaja de volta como parâmetro. |
+| `POST /api/cadastro` | Cria a conta com e-mail e senha, **já abre a sessão** e devolve o cookie. `409` se o e-mail já tem conta. |
+| `GET /api/quem-sou` | A conta da sessão, ou `{"conta": null}`. É o que o frontend consulta ao abrir o app. |
 
 A documentação interativa fica em http://localhost:8000/docs, gerada dos
 modelos Pydantic.
+
+### Conta e sessão
+
+Cadastrar **já entra**: quem acabou de provar que sabe a senha não deveria ter
+de digitá-la de novo na tela seguinte. Demonstrável por linha de comando:
+
+```bash
+curl -c cookies.txt -X POST localhost:8000/api/cadastro \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"ana@exemplo.com","senha":"correia-de-bateria"}'
+
+curl -b cookies.txt localhost:8000/api/quem-sou
+```
+
+A sessão é um cookie `HttpOnly`, `SameSite=Lax`, `Secure` fora de
+desenvolvimento, com linha na tabela — nunca um token no armazenamento do
+navegador, que seria legível por qualquer script da página e não teria como ser
+revogado antes de expirar. Ver [ADR 0005](docs/adr/0005-sessao-em-cookie-nao-jwt.md).
+
+Três detalhes que surpreendem:
+
+- **`/api/quem-sou` responde `200` mesmo sem sessão**, com `{"conta": null}`.
+  Visitante sem conta é o estado normal de quem nunca entrou, não uma falha;
+  `401` obrigaria o frontend a tratar como erro o caso mais comum que existe.
+- **A senha é guardada como hash Argon2id** e não sai em resposta alguma, nem
+  de erro. Há um teste que lê o corpo cru de cinco respostas só para garantir
+  isso ([`test_conta_http.py`](backend/tests/test_conta_http.py)).
+- **O CORS mudou junto**: a sessão viaja em cookie, e cookie só atravessa
+  origem com `allow_credentials=True` — que por sua vez proíbe
+  `allow_origins=["*"]`. Em desenvolvimento nada disso aparece, porque o proxy
+  do Vite faz o browser ver uma origem só.
 
 Quatro detalhes do contrato que surpreendem:
 
@@ -181,9 +214,10 @@ surpreendem:**
 |---|---|---|
 | `CORS_ORIGINS` | vazio | Origens permitidas, separadas por vírgula. Só é necessária quando frontend e backend forem servidos de origens diferentes; em dev o proxy do Vite dispensa. |
 | `DATABASE_URL` | o banco local na 5433 | A URL do Postgres. O esquema precisa ser `postgresql+psycopg://` — o driver é o psycopg 3, e sem o sufixo o SQLAlchemy procura o psycopg2 e reclama de um pacote que ninguém pediu. |
+| `AMBIENTE` | `producao` | Só `desenvolvimento` muda alguma coisa: tira o `Secure` do cookie de sessão, que em `http://localhost` impediria o cookie de voltar. O padrão é o seguro — quem não configura nada leva `Secure`. |
 
-As duas têm padrão no código, então um `.env` vazio funciona em desenvolvimento.
-[`backend/.env.example`](backend/.env.example) documenta as duas; o `.env` real
+As três têm padrão no código, então um `.env` vazio funciona em desenvolvimento.
+[`backend/.env.example`](backend/.env.example) documenta as três; o `.env` real
 não entra no git.
 
 ### O banco
