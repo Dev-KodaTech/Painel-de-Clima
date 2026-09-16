@@ -2,9 +2,13 @@
 
 O router e fino de proposito. A politica da senha mora em
 `services/conta.py`, o hash em `services/senha.py`, a duracao e o formato do
-cookie em `services/sessao.py`, e a escrita no banco no repositorio. O que
-sobra aqui e traduzir: corpo da requisicao para chamada, excecao para status,
-sessao para cookie.
+cookie em `services/sessao.py`, a leitura da sessao em `dependencias.py`, e a
+escrita no banco no repositorio. O que sobra aqui e traduzir: corpo da
+requisicao para chamada, excecao para status, sessao para cookie.
+
+`conta_da_sessao` morou aqui enquanto o `quem-sou` era seu unico chamador;
+mudou-se para `dependencias.py` quando os planos do Calendario e os locais
+salvos passaram a precisar dela. O motivo esta registrado la.
 
 **Nenhuma resposta daqui carrega a senha ou o hash** — nem a de erro. `ContaSaida`
 tem um campo so, e e o e-mail.
@@ -12,11 +16,12 @@ tem um campo so, e e o e-mail.
 
 from typing import NoReturn
 
-from fastapi import APIRouter, Cookie, HTTPException, Response, status
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
 from pydantic import BaseModel, Field
 
 from app import repositorio_do_processo
 from app.db.repositorio import Conta, EmailJaUsado, Repositorio
+from app.dependencias import conta_opcional
 from app.services import sessao as servico_de_sessao
 from app.services.conta import (
     MSG_CREDENCIAIS_INVALIDAS,
@@ -209,49 +214,21 @@ def _recusar_credenciais() -> NoReturn:
 
 
 @router.get("/quem-sou", response_model=QuemSouResponse)
-def quem_sou(
-    # `alias` obrigatorio: sem ele o FastAPI derivaria o nome do cookie do
-    # **nome do parametro**, e a constante valeria so na escrita — renomea-la
-    # quebraria a leitura em silencio, que e exatamente o que ela existe para
-    # impedir.
-    sessao: str | None = Cookie(default=None, alias=servico_de_sessao.NOME_DO_COOKIE),
-) -> QuemSouResponse:
+def quem_sou(conta: Conta | None = Depends(conta_opcional)) -> QuemSouResponse:
     """A conta da sessao, ou `None`.
 
     **`200` nos dois casos.** Visitante sem conta e o estado normal de quem
     nunca entrou, e nao uma falha: `401` obrigaria o frontend a tratar como
     erro o caso mais comum que existe, e encheria o console de vermelho em toda
     visita anonima.
-    """
-    with repositorio_do_processo.atual() as repositorio:
-        conta = conta_da_sessao(repositorio, sessao)
 
+    E a razao de o guard opcional existir: este endpoint ja era a rota mista do
+    app antes de haver nome para isso, e passar a consumi-lo prova que a
+    dependencia entrega o que a leitura a mao entregava.
+    """
     return QuemSouResponse(
         conta=None if conta is None else ContaSaida(email=conta.email)
     )
-
-
-def conta_da_sessao(repositorio: Repositorio, id_da_sessao: str | None) -> Conta | None:
-    """A conta de quem esta pedindo, ou `None` se nao ha sessao que valha.
-
-    Um so caminho para as tres formas de nao ter sessao — cookie ausente, linha
-    inexistente e linha vencida —, porque as tres tem de ser indistinguiveis:
-    respostas diferentes diriam a quem testa identificadores quais existem.
-
-    Vive no router, e nao no repositorio, porque a expiracao e decidida com o
-    relogio da aplicacao; um repositorio que filtrasse por data precisaria de um
-    relogio proprio, e os testes de expiracao passariam a controlar dois.
-    """
-    if id_da_sessao is None:
-        return None
-
-    encontrada = repositorio.sessao(id_da_sessao)
-    if encontrada is None:
-        return None
-    if not servico_de_sessao.esta_valida(encontrada.expira_em, servico_de_sessao.agora()):
-        return None
-
-    return repositorio.conta_por_id(encontrada.conta_id)
 
 
 def _abrir_sessao(repositorio: Repositorio, conta: Conta, response: Response) -> None:
