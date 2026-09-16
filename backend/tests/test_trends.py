@@ -11,7 +11,7 @@ teste que carimbasse "2026-09-15" quebraria amanha sem que nada tivesse
 quebrado.
 """
 
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 import httpx
 import pytest
@@ -367,10 +367,17 @@ class TestUv:
         painel de UV ficava vazio na cidade inteira.
         """
         # A previsao comeca um dia depois da ponta da janela, como em Wellington.
+        #
+        # O dia da cidade e **derivado** de hoje, e nao carimbado: com a data
+        # fixa, o teste passava a acusar o proprio calendario no dia em que hoje
+        # alcancasse o literal — as duas datas coincidiam, e o cenario que ele
+        # existe para exercitar (as duas discordam) deixava de ser montado. E a
+        # regra que o docstring do modulo ja declara.
+        dia_da_cidade = (date.today() + timedelta(days=1)).isoformat()
         adiantada = {
             **UV_BERLIM,
             "hourly": {
-                "time": [f"2026-09-16T{hora:02d}:00" for hora in range(24)],
+                "time": [f"{dia_da_cidade}T{hora:02d}:00" for hora in range(24)],
                 "uv_index": [1.5] * 24,
             },
         }
@@ -378,9 +385,9 @@ class TestUv:
 
         corpo = _buscar().json()
 
-        assert corpo["periodo"]["fim"] != "2026-09-16"
+        assert corpo["periodo"]["fim"] != dia_da_cidade
         assert len(corpo["uv"]["horas"]) == 24
-        assert corpo["uv"]["horas"][0]["time"].startswith("2026-09-16")
+        assert corpo["uv"]["horas"][0]["time"].startswith(dia_da_cidade)
 
     @respx.mock
     def test_sem_uv_previsto_o_bloco_vem_vazio_e_nao_derruba_a_pagina(self):
