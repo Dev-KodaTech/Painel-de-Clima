@@ -35,6 +35,21 @@ Os três feeds respondem, sem chave, sem cota, sem restrição comercial e **sem
 atraso artificial de 12 a 24 horas** que os níveis gratuitos impõem. A Agência
 Brasil é EBC, setor público, licença CC.
 
+### Sem chave, mas não sem cabeçalho
+
+Descoberto na implementação, e não na avaliação: o CloudFront à frente do
+`oc.eco.br` responde **403 a quase todo `User-Agent`**. Foi medido — recusa o
+padrão do httpx, recusa `curl/8.7.1`, e recusa até o nome próprio da aplicação
+sem prefixo (`PainelDeClima/1.0 …`). O que passa é a forma
+`Mozilla/5.0 (compatible; Nome/Versão)`, a convenção de robô educado que os
+buscadores usam: satisfaz o filtro **e** continua nomeando quem está pedindo.
+
+Isso não muda a decisão — continua sem chave, sem cota e sem cadastro —, mas
+corrige "basta pedir o feed", que era a leitura natural desta seção. O valor
+está em `USER_AGENT`, com a medição registrada ao lado; um teste de contrato
+por veículo denuncia se o filtro mudar. É a peculiaridade de fornecedor que o
+ADR 0008 já documentou para o INMET, aqui por outro motivo.
+
 A troca não é um consolo: em frescor e em condições de uso, o RSS é melhor que
 qualquer nível gratuito avaliado. O que se perde é volume e diversidade
 editorial — três veículos brasileiros em vez de um agregador global.
@@ -66,6 +81,20 @@ cidade.
 **O backend passa a fazer parsing de XML de terceiros.** Feeds quebram, mudam de
 formato e saem do ar sem aviso. Um feed indisponível não pode derrubar a página:
 a agregação ignora o que falhou e mostra o resto.
+
+O custo concreto apareceu no `description`, e é maior do que "ler um campo": os
+três veículos servem **HTML** ali, em três formatos diferentes. A Agência Brasil
+o manda **duas vezes escapado** (`&lt;p&gt;`), precedido de um logotipo e de um
+`<p>` de centralização, com o texto útil dentro de um `<strong>` a ~400
+caracteres do início; os outros dois mandam CDATA, com o rodapé do WordPress
+("O post … apareceu primeiro em …") colado no fim de toda matéria. Sem limpeza,
+o resumo de um veículo começaria com marcação e o dos outros dois terminaria
+repetindo o nome que a linha ao lado já mostra. A ordem das operações está
+documentada em `_resumo`, e as fixtures golden preservam as três armadilhas.
+
+Um detalhe do mesmo tipo: o `guid` da Agência Brasil **não é URL**
+(`1702339 at https://…`). Nos outros dois é, o que torna tentador usá-lo como
+reserva do `<link>` — e produziria link quebrado num veículo só.
 
 **A página depende de três veículos com dez itens cada.** É uma página pequena, e
 fica menor se um feed parar. Acrescentar veículos é barato, e é a saída se isso

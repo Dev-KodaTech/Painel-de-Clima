@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app import dataset
 from app.config import cors_origins
-from app.routers import conta, health, trends, weather
+from app.routers import conta, health, noticias, trends, weather
 
 
 @asynccontextmanager
@@ -44,3 +44,4 @@ app.include_router(health.router)
 app.include_router(conta.router)
 app.include_router(weather.router)
 app.include_router(trends.router)
+app.include_router(noticias.router)

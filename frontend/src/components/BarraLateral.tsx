@@ -1,12 +1,12 @@
 /**
- * A barra lateral: marca, as seis paginas e a saida.
+ * A barra lateral: marca, as paginas do app e a saida.
  *
  * Cada link **preserva os parametros de busca**. Sem isso, trocar de pagina
  * descartaria a cidade escolhida — que e justamente o que mora na URL — e a
  * pagina de destino abriria vazia.
  *
  * Os icones nao tem rotulo de texto: a faixa de 64 px do design nao comporta
- * um, e seis icones mudos sao anonimos para teclado e leitor de tela. Dai o
+ * um, e um icone mudo e anonimo para teclado e leitor de tela. Dai o
  * `aria-label` em cada link, com `title` para o tooltip do browser.
  */
 
@@ -33,7 +33,7 @@ export function BarraLateral({ conta, aoSair }: Props) {
     >
       {/* A marca leva ao inicio, como em qualquer site — e sem destaque de
           ativo, que pertence ao icone de grade. Alguem perdido em /ajustes
-          clica nela antes de decifrar qual dos seis icones e o inicio. */}
+          clica nela antes de decifrar qual dos icones e o inicio. */}
       <Link
         to={{ pathname: "/", search }}
         aria-label="Painel de Clima, ir para o inicio"

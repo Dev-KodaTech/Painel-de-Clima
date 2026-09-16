@@ -1,7 +1,7 @@
 /**
  * A pagina Tendencia: a pagina de analise do painel.
  *
- * E o unico lugar do app que **olha para tras**. As outras cinco paginas
+ * E o unico lugar do app que **olha para tras**. As outras paginas de cidade
  * respondem "como esta o tempo agora e nos proximos sete dias"; esta responde
  * "este periodo esta fora do normal?", comparando a janela escolhida com o
  * mesmo periodo do ano anterior.
@@ -11,10 +11,10 @@
  * E a excecao deliberada a regra do `docs/adr/0002-cidade-na-url.md`, e o
  * motivo e o mesmo que o ADR usou para rejeitar a terceira opcao — so
  * invertido. La, o que se queria evitar era uma requisicao que toda troca de
- * pagina refaz; aqui, o `Shell` buscando o historico faria **as seis paginas**
+ * pagina refaz; aqui, o `Shell` buscando o historico faria **as oito paginas**
  * pagarem por ele.
  *
- * A regra, para quem acrescentar a setima pagina e encontrar dois precedentes:
+ * A regra, para quem acrescentar a proxima pagina e encontrar tres precedentes:
  * **dado que varias paginas leem vai no `Shell`; dado que so uma pagina le vai
  * nela.**
  *

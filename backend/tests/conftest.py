@@ -1,6 +1,35 @@
+import httpx
 import pytest
+import respx
 
 from app import cache_do_processo
+from app.services import noticias
+from tests.fixtures_rss import FEED_AGENCIA_BRASIL, FEED_FAPESP, FEED_OBSERVATORIO
+
+
+def resposta_de_feed(corpo: str) -> httpx.Response:
+    """Uma resposta de RSS, com o `content-type` que os tres veiculos servem.
+
+    Mora aqui porque os dois arquivos de teste das noticias precisam dela — o
+    do agregador e o do endpoint —, e uma copia em cada divergiria no dia em
+    que o `content-type` importasse.
+    """
+    return httpx.Response(
+        200, text=corpo, headers={"content-type": "application/rss+xml; charset=utf-8"}
+    )
+
+
+def mockar_todos_os_feeds() -> None:
+    """Mocka os tres feeds com as fixtures golden. Pede `@respx.mock` no teste."""
+    respx.get(noticias.AGENCIA_BRASIL.url).mock(
+        return_value=resposta_de_feed(FEED_AGENCIA_BRASIL)
+    )
+    respx.get(noticias.OBSERVATORIO_DO_CLIMA.url).mock(
+        return_value=resposta_de_feed(FEED_OBSERVATORIO)
+    )
+    respx.get(noticias.PESQUISA_FAPESP.url).mock(
+        return_value=resposta_de_feed(FEED_FAPESP)
+    )
 
 
 class Relogio:

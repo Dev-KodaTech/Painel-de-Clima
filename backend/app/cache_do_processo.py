@@ -16,7 +16,11 @@ possiveis nao tem limite. E a chamada barata das duas, que nao arrasta previsao
 junto.
 """
 
-from app.services.cache import TTL_DO_PASSADO_SEGUNDOS, Cache
+from app.services.cache import (
+    TTL_DAS_NOTICIAS_SEGUNDOS,
+    TTL_DO_PASSADO_SEGUNDOS,
+    Cache,
+)
 
 _cache = Cache()
 
@@ -29,6 +33,16 @@ _cache = Cache()
 #: receber os mesmos numeros de volta.
 _cache_do_passado = Cache(ttl_segundos=TTL_DO_PASSADO_SEGUNDOS)
 
+#: A terceira familia: as noticias. Entrou pelo mesmo criterio que separou as
+#: duas primeiras — **a escala em que o dado muda** —, e nao por ser mais um
+#: fornecedor. A previsao muda a cada quinze minutos, o passado nao muda mais, e
+#: uma materia publicada e um evento que nao se repete.
+#:
+#: Se uma quarta aparecer, o criterio continua sendo este. O que nao deve
+#: acontecer e uma instancia por endpoint: duas chamadas com a mesma escala
+#: compartilham a mesma familia, como a previsao e as vizinhas ja fazem.
+_cache_das_noticias = Cache(ttl_segundos=TTL_DAS_NOTICIAS_SEGUNDOS)
+
 
 def atual() -> Cache:
     """O cache em uso. Funcao, e nao a instancia exportada, para que
@@ -39,6 +53,11 @@ def atual() -> Cache:
 def do_passado() -> Cache:
     """O cache do dado que nao muda mais: o historico do ano anterior."""
     return _cache_do_passado
+
+
+def das_noticias() -> Cache:
+    """O cache das noticias, com TTL de meia hora."""
+    return _cache_das_noticias
 
 
 def substituir(cache: Cache, passado: Cache | None = None) -> None:
@@ -53,7 +72,26 @@ def substituir(cache: Cache, passado: Cache | None = None) -> None:
         _cache_do_passado = passado
 
 
+def substituir_noticias(cache: Cache) -> None:
+    """Troca o cache das noticias. Existe para o teste injetar um relogio.
+
+    Funcao propria, e nao um terceiro parametro de `substituir`: quem testa a
+    expiracao das noticias nao tem previsao nenhuma a trocar junto, e a
+    assinatura com tres opcionais deixaria de dizer qual delas se esta
+    exercitando.
+    """
+    global _cache_das_noticias
+    _cache_das_noticias = cache
+
+
 def limpar() -> None:
-    """Esvazia os dois caches, sem troca-los."""
+    """Esvazia os tres caches, sem troca-los.
+
+    **Toda familia nova entra aqui.** Esquecer uma faz a entrada guardada por
+    um teste ser servida ao seguinte, e o sintoma e uma falha que depende da
+    ordem de execucao e some quando o teste roda sozinho — exatamente o que a
+    fixture `cache_limpo` existe para impedir.
+    """
     _cache.limpar()
     _cache_do_passado.limpar()
+    _cache_das_noticias.limpar()

@@ -3,6 +3,7 @@
 Servem de contrato e geram o schema OpenAPI.
 """
 
+from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -41,16 +42,43 @@ _ATRIBUICAO_INMET = "Alertas: INMET"
 
 
 def atribuicao(*, com_inmet: bool = False) -> str:
-    """Monta a linha de atribuicao de um endpoint.
+    """Monta a linha de atribuicao de um endpoint **de dado de clima**.
 
     Funcao, e nao mais uma constante unica: o INMET so aparece em
     `/api/condicoes`, e mesmo ali so quando a resposta de fato traz um alerta
     — credita-lo sem alerta algum seria impreciso. Cada endpoint decide o que
     citar em vez de todos herdarem a mesma string.
+
+    `/api/noticias` **nao passa por aqui**: nao le a Open-Meteo nem o GeoNames,
+    e nomea-los ali creditaria fornecedor que nao forneceu nada. Ver
+    `atribuicao_das_noticias`.
     """
     if not com_inmet:
         return _ATRIBUICAO_BASE
     return f"{_ATRIBUICAO_BASE} · {_ATRIBUICAO_INMET}"
+
+
+def atribuicao_das_noticias(veiculos: list[str]) -> str:
+    """A linha de credito da pagina Noticias: os veiculos, nomeados.
+
+    **Nao reaproveita `_ATRIBUICAO_BASE`**, e e a unica linha do app que nao o
+    faz: a pagina nao consulta a Open-Meteo nem o GeoNames, e cita-los seria
+    creditar quem nao participou. A licenca dos feeds e que pede credito, e o
+    que ela pede sao os veiculos (ADR 0009).
+
+    Os veiculos vem por parametro, e nao fixos no texto: a lista que se credita
+    e a lista de onde as materias **de fato** vieram. Com um veiculo fora do
+    ar, creditar os tres afirmaria uma procedencia que a resposta nao tem.
+
+    Nenhum veiculo devolve **string vazia**, e nao uma frase generica. Uma
+    resposta sem materia alguma nao tem procedencia a creditar, e um credito
+    ali — "feeds publicos dos veiculos" — creditaria exatamente aquilo que
+    acabou de nao fornecer nada, que e a imprecisao que esta funcao existe para
+    evitar. A interface ja nao tem o que exibir nesse caso.
+    """
+    if not veiculos:
+        return ""
+    return f"Notícias: {' · '.join(veiculos)}"
 
 
 class Cidade(BaseModel):
@@ -325,6 +353,74 @@ class CondicoesResponse(BaseModel):
             "Um item por dia que dispara uma categoria, em ordem cronologica. "
             "Um dia que dispara duas categorias produz dois itens. Lista "
             "vazia e o caminho normal numa semana calma, nao erro."
+        )
+    )
+    attribution: str
+
+
+class Noticia(BaseModel):
+    """Uma materia de clima ou meio ambiente, vinda de feed publico.
+
+    **O unico conteudo do app que nao e sobre a cidade escolhida** — e nao e
+    dado meteorologico: ninguem a calculou, e nada no app depende dela
+    (`CONTEXT.md`). Por isso nao ha coordenada nem unidade em lugar algum
+    daqui.
+
+    `veiculo` e obrigatorio e nunca opcional: a licenca pede credito, e numa
+    lista que mistura agencia publica, ONG e revista cientifica quem publicou e
+    parte da informacao (ADR 0009).
+    """
+
+    titulo: str
+    veiculo: str = Field(
+        description="Quem publicou, como a interface o credita: 'Agência Brasil'."
+    )
+    link: str = Field(description="A materia no site do veiculo.")
+    # `datetime`, e nao a string de parede que o resto do payload usa: aqui a
+    # data **tem** fuso — os feeds divergem entre `-0300` e `+0000` — e o que
+    # se exibe e "ha duas horas" ou "14 set", nao um horario local de cidade
+    # nenhuma. As datas sem fuso do painel sao horario da cidade consultada, e
+    # esta nao pertence a cidade alguma.
+    publicada_em: datetime = Field(description="Quando o veiculo publicou, com fuso.")
+    resumo: str = Field(
+        description=(
+            "A chamada da materia, ja como texto corrido — os feeds servem HTML "
+            "aqui, um deles duplamente escapado. String vazia quando o feed nao "
+            "traz resumo algum."
+        )
+    )
+
+
+#: Os dois estados da pagina Noticias que **nunca** se confundem. "Nenhuma
+#: noticia" e "nenhum veiculo respondeu" mostram os dois uma lista vazia e
+#: afirmam coisas opostas: um diz "consultamos e nao ha materia nova", o outro
+#: diz "nao temos como saber". E a mesma regra que `StatusDosAlertas` aplica
+#: aos alertas, pelo mesmo motivo (ADR 0009).
+StatusDasNoticias = Literal["ok", "indisponivel"]
+
+
+class NoticiasResponse(BaseModel):
+    """A pagina Noticias: materias dos tres veiculos, ja agregadas.
+
+    **Sem `location`, sem `units`, sem coordenada.** E a unica resposta do
+    backend que nao e sobre uma cidade — as noticias sao nacionais e a pagina
+    as apresenta como tais, sem filtro regional (ADR 0009).
+    """
+
+    noticias: list[Noticia] = Field(
+        description=(
+            "Em ordem cronologica decrescente, misturando os veiculos. Vazia "
+            "tanto num dia sem materia quanto quando nenhum feed respondeu — "
+            "quem le decide o que a lista vazia significa pelo `status`, nunca "
+            "pela lista sozinha."
+        )
+    )
+    status: StatusDasNoticias
+    veiculos_fora_do_ar: list[str] = Field(
+        description=(
+            "Os veiculos que nao responderam. Vazio no caminho normal. "
+            "Nomeados, e nao contados: e o que explica a quem le por que a "
+            "lista esta mais curta que o habitual."
         )
     )
     attribution: str

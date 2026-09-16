@@ -8,6 +8,12 @@ A Open-Meteo e dependencia externa sem versionamento. Quando o formato mudar,
 o erro precisa ser legivel — mas fazer a suite inteira depender da rede a
 tornaria lenta e intermitente. Verifica presenca de campo, nunca valor: os
 valores mudam a cada hora.
+
+Sao **cinco fornecedores** aqui: a Open-Meteo (clima e geocodificacao), o INMET
+(alertas) e os tres feeds de noticias. Os feeds sao os que menos prometem — sao
+paginas de WordPress e de um CMS proprietario, sem contrato algum —, e por isso
+os unicos cujo teste de contrato verifica tambem que o **agregado** continua
+utilizavel, e nao so que os campos existem.
 """
 
 from datetime import datetime, timezone
@@ -15,7 +21,7 @@ from datetime import datetime, timezone
 import httpx
 import pytest
 
-from app.services import inmet, open_meteo
+from app.services import inmet, noticias, open_meteo
 
 
 @pytest.mark.contract
@@ -213,3 +219,54 @@ async def test_inmet_ainda_traz_os_campos_usados():
     anel = inmet.poligono_do_aviso(avisos[0])
     assert len(anel) >= 3
     assert all(len(ponto) == 2 for ponto in anel)
+
+
+@pytest.mark.contract
+@pytest.mark.anyio
+@pytest.mark.parametrize("feed", noticias.FEEDS, ids=lambda feed: feed.veiculo)
+async def test_feed_de_noticias_ainda_responde_e_traz_os_campos_usados(feed):
+    """Um caso por veiculo, e nao um que agrega os tres.
+
+    Parametrizado de proposito: com um caso so, o feed do Observatorio do Clima
+    voltando a recusar o cliente ficaria escondido atras dos outros dois — que
+    e exatamente o que a agregacao faz em producao, e o contrario do que um
+    teste de contrato deve fazer. Aqui cada veiculo falha com o proprio nome.
+    """
+    async with httpx.AsyncClient(
+        timeout=noticias.TIMEOUT,
+        headers={"User-Agent": noticias.USER_AGENT},
+        follow_redirects=True,
+    ) as client:
+        response = await client.get(feed.url)
+
+    # O 403 do CloudFront e o que este caso existe para pegar: sem o
+    # `User-Agent` proprio, `oc.eco.br` recusa a requisicao.
+    assert response.status_code == 200
+
+    itens = noticias._itens_do_xml(response.text, feed.veiculo)
+
+    assert itens, "o feed respondeu, mas nenhum item sobreviveu ao parsing"
+    for item in itens:
+        assert item.titulo
+        assert item.link.startswith("https://")
+        assert item.publicada_em.tzinfo is not None
+
+
+@pytest.mark.contract
+@pytest.mark.anyio
+async def test_o_agregado_real_mistura_os_tres_veiculos():
+    """Ponta a ponta contra a rede: os tres entram e a ordem vale.
+
+    O complemento do caso acima. La se verifica cada feed isolado; aqui, que a
+    agregacao de fato produz uma pagina — se um veiculo parar de responder, o
+    `status` continua `ok` e e `veiculos_fora_do_ar` que denuncia, que e o
+    comportamento que o ADR 0009 exige.
+    """
+    agregado = await noticias.buscar_noticias()
+
+    assert agregado.status == "ok"
+    assert agregado.veiculos_fora_do_ar == []
+    assert len({item.veiculo for item in agregado.noticias}) == len(noticias.FEEDS)
+
+    datas = [item.publicada_em for item in agregado.noticias]
+    assert datas == sorted(datas, reverse=True)

@@ -149,6 +149,25 @@ export function IconeSino(props: Props) {
   );
 }
 
+/**
+ * O jornal da pagina Noticias.
+ *
+ * Uma folha com dobra e linhas de texto, e **nao** um globo ou um sino: o globo
+ * diria "mundo" numa pagina que e nacional, e o sino ja e o alerta do
+ * cabecalho — o icone que mais precisa nao ser confundido com este, porque a
+ * diferenca entre aviso oficial e noticia e justamente o que o `CONTEXT.md`
+ * protege.
+ */
+export function IconeJornal(props: Props) {
+  return (
+    <Traco {...props}>
+      <path d="M4 5.5h12.5a1.5 1.5 0 0 1 1.5 1.5v11.5a2 2 0 0 0 2 2H6a2 2 0 0 1-2-2Z" />
+      <path d="M20 20.5a2 2 0 0 0 2-2V9.5h-4" />
+      <path d="M7.2 9h6M7.2 12.4h6M7.2 15.8h3.4" />
+    </Traco>
+  );
+}
+
 /** Silhueta neutra: nao ha cadastro, e um rosto inventado seria um usuario falso. */
 export function IconePessoa(props: Props) {
   return (

@@ -12,6 +12,7 @@ import type {
   CondicoesResponse,
   Conta,
   Janela,
+  NoticiasResponse,
   QuemSouResponse,
   TrendsResponse,
   WeatherResponse,
@@ -236,6 +237,23 @@ export async function buscarCondicoes(
   });
 
   return pegar<CondicoesResponse>(`/api/condicoes?${params}`, sinal);
+}
+
+/**
+ * As noticias de clima e meio ambiente dos tres veiculos.
+ *
+ * **A unica chamada do cliente sem parametro nenhum**, e a unica que nao
+ * carrega coordenada: as noticias sao nacionais e a pagina nao depende da
+ * cidade escolhida (ADR 0009).
+ *
+ * Um feed fora do ar **nao** vira erro aqui: o backend responde `200` com
+ * `status` e `veiculos_fora_do_ar` no corpo, e quem exibe decide o que dizer.
+ * Esta funcao so rejeita quando a requisicao ao *nosso* backend falha.
+ */
+export async function buscarNoticias(
+  sinal?: AbortSignal,
+): Promise<NoticiasResponse> {
+  return pegar<NoticiasResponse>("/api/noticias", sinal);
 }
 
 /**

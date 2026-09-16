@@ -208,6 +208,52 @@ export function diferenca(valor: number, unidade: string): string {
 }
 
 /**
+ * "14 set, 21:52" — quando uma noticia foi publicada.
+ *
+ * **A unica funcao deste modulo que converte de verdade**, e a excecao merece
+ * a explicacao. Todo o resto recorta texto porque os timestamps do painel vem
+ * *sem* offset e sao horario de parede da cidade consultada: converte-los os
+ * moveria para o fuso de quem olha, que e o defeito que este modulo existe
+ * para evitar.
+ *
+ * Aqui e o oposto. A `publicada_em` chega **com** offset — e os feeds divergem
+ * entre `-0300` e `+0000` (ADR 0009) —, e uma noticia nao pertence a cidade
+ * nenhuma: ela foi publicada num instante, e o instante se le no fuso de quem
+ * esta lendo. Recortar o texto aqui exibiria a hora de Brasilia para uns e a
+ * de Londres para outros, conforme o veiculo, o que seria um numero sem
+ * significado.
+ *
+ * **O ano aparece quando nao e o corrente.** Os feeds trazem dezenas de itens
+ * e a FAPESP publica devagar: sem isto, uma materia de setembro do ano passado
+ * se leria "11 set, 12:03", indistinguivel da desta semana. Omiti-lo no ano
+ * corrente — que e a esmagadora maioria — mantem a linha curta onde a
+ * ambiguidade nao existe.
+ *
+ * `agora` e injetado para que o teste do caso "ano anterior" nao dependa da
+ * data em que roda.
+ *
+ * Uma data que o browser nao consiga ler devolve string vazia, e nao "Invalid
+ * Date": o backend ja descarta o item sem data, entao isto e so a rede de
+ * seguranca de uma linha que nao deve mostrar lixo.
+ */
+export function publicadaEm(iso: string, agora = new Date()): string {
+  const instante = new Date(iso);
+  if (Number.isNaN(instante.getTime())) return "";
+
+  const dia = instante.getDate();
+  const mes = MESES_CURTOS[instante.getMonth()];
+  const hora = String(instante.getHours()).padStart(2, "0");
+  const minuto = String(instante.getMinutes()).padStart(2, "0");
+
+  const ano =
+    instante.getFullYear() === agora.getFullYear()
+      ? ""
+      : ` de ${instante.getFullYear()}`;
+
+  return `${dia} ${mes}${ano}, ${hora}:${minuto}`;
+}
+
+/**
  * As faixas do indice UV, como a OMS as define.
  *
  * O numero sozinho nao diz nada a quem nao o consulta todo dia: 3 e 8 sao

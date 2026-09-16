@@ -24,7 +24,7 @@ import type { Estado as EstadoDoPainel } from "./estadoDoPainel";
  * recarrega a pagina veria a propria conta piscar de ausente para presente.
  *
  * Nao ha estado de erro. Se `/api/quem-sou` falhar, o app segue como visitante:
- * e o estado em que as outras seis paginas funcionam inteiras, e uma faixa
+ * e o estado em que as outras sete paginas funcionam inteiras, e uma faixa
  * vermelha no topo por causa de uma consulta que so decide se o cabecalho
  * mostra um e-mail seria alarme desproporcional ao que se perdeu.
  */

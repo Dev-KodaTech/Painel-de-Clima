@@ -26,6 +26,17 @@ TTL_PADRAO_SEGUNDOS = 600
 #: correcoes tardias raras.
 TTL_DO_PASSADO_SEGUNDOS = 86_400
 
+#: Trinta minutos, para as noticias. **A escala do dado, e nao a da previsao**:
+#: uma materia publicada e um evento, nao uma medicao que se refaz — os tres
+#: veiculos publicam algumas vezes ao dia, e o TTL de dez minutos da previsao
+#: reconsultaria tres feeds para receber a mesma lista de volta.
+#:
+#: Meia hora, e nao as horas inteiras que a escala permitiria: o teto util e o
+#: da materia urgente — uma enchente em curso —, e meia hora e o atraso maximo
+#: aceitavel para ela aparecer. O piso e o custo de tres requisicoes; entre os
+#: dois ha folga, e o valor fica mais perto do piso de proposito.
+TTL_DAS_NOTICIAS_SEGUNDOS = 1_800
+
 
 class Cache:
     """Guarda valores por chave, ate o TTL expirar.

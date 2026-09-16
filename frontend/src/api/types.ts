@@ -209,6 +209,64 @@ export type CondicoesResponse = {
   attribution: string;
 };
 
+/**
+ * Uma materia de clima ou meio ambiente, vinda de feed publico.
+ *
+ * **O unico conteudo do app que nao e sobre a cidade escolhida.** Nao e dado
+ * meteorologico: ninguem a calculou, ela nao descreve cidade nenhuma e nada no
+ * app depende dela (ver o verbete *Noticia* do `CONTEXT.md`). Dai nao haver
+ * coordenada nem unidade em campo algum daqui.
+ */
+export type Noticia = {
+  titulo: string;
+  /**
+   * Quem publicou. **Sempre exibido**, nunca opcional: a licenca pede credito,
+   * e numa lista que mistura agencia publica, ONG e revista cientifica quem
+   * publicou e parte da informacao (ADR 0009).
+   */
+  veiculo: string;
+  /** A materia no site do veiculo. */
+  link: string;
+  /**
+   * Quando o veiculo publicou, em ISO **com fuso** — diferente de todo o resto
+   * do payload, cujos horarios sao de parede e sem sufixo. Aqui ha fuso porque
+   * os feeds divergem (`-0300` e `+0000`) e porque a data nao pertence a
+   * cidade nenhuma.
+   */
+  publicada_em: string;
+  /** A chamada da materia, ja como texto corrido. Vazia quando o feed nao traz. */
+  resumo: string;
+};
+
+/**
+ * Os dois estados da pagina Noticias, **nunca colapsados** entre si.
+ *
+ * `"ok"` cobre inclusive a lista vazia: tres feeds que responderam sem materia
+ * sao um dia calmo. `"indisponivel"` e so quando **nenhum** veiculo respondeu —
+ * ali a lista vazia nao diz "nao ha noticia", diz "nao ha como saber". O mesmo
+ * cuidado de `StatusDosAlertas`, pelo mesmo motivo (ADR 0009).
+ */
+export type StatusDasNoticias = "ok" | "indisponivel";
+
+/**
+ * A pagina Noticias: as materias dos tres veiculos, ja agregadas.
+ *
+ * **Sem `location` e sem `units`** — e a unica resposta do backend que nao e
+ * sobre uma cidade. As noticias sao nacionais e nao ha filtro regional
+ * (ADR 0009).
+ */
+export type NoticiasResponse = {
+  /** Em ordem cronologica decrescente, misturando os veiculos. */
+  noticias: Noticia[];
+  status: StatusDasNoticias;
+  /**
+   * Os veiculos que nao responderam; vazio no caminho normal. Nomeados, e nao
+   * contados: e o que explica a quem le por que a lista esta curta.
+   */
+  veiculos_fora_do_ar: string[];
+  attribution: string;
+};
+
 export type WeatherResponse = {
   location: Location;
   current: Current;

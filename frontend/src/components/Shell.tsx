@@ -19,7 +19,7 @@ import { descobrirCidadeInicial } from "../cidadeInicial";
 import type { ContextoDoOutlet, EstadoDaConta } from "../estadoDaConta";
 import type { Estado } from "../estadoDoPainel";
 import { dataPorExtenso } from "../formato";
-import { CAMINHO_SEM_BUSCA, ehTelaDeConta } from "../navegacao";
+import { ehPaginaSemBusca, ehTelaDeConta } from "../navegacao";
 import { lembrar } from "../ultimaCidade";
 import { BarraLateral } from "./BarraLateral";
 import { Cabecalho } from "./Cabecalho";
@@ -256,11 +256,12 @@ export function Shell() {
           <Cabecalho
             conta={conta}
             data={data}
-            // As telas de conta se juntam a Ajustes na lista das que nao sao
-            // sobre uma cidade: buscar uma cidade de dentro do formulario de
-            // cadastro trocaria a URL sob um formulario ja preenchido.
+            // As telas de conta se juntam a Ajustes e a Noticias na lista das
+            // que nao sao sobre uma cidade: buscar uma cidade de dentro do
+            // formulario de cadastro trocaria a URL sob um formulario ja
+            // preenchido, e na Noticias nao mudaria nada na tela.
             mostrarBusca={
-              pathname !== CAMINHO_SEM_BUSCA && !ehTelaDeConta(pathname)
+              !ehPaginaSemBusca(pathname) && !ehTelaDeConta(pathname)
             }
             nomeDaCidade={
               estado.tipo === "pronto" ? estado.painel.location.name : null

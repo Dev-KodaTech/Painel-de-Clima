@@ -30,6 +30,7 @@ import { CidadesVizinhas } from "./paginas/CidadesVizinhas";
 import { Condicoes } from "./paginas/Condicoes";
 import { Entrada } from "./paginas/Entrada";
 import { NaoEncontrada } from "./paginas/NaoEncontrada";
+import { Noticias } from "./paginas/Noticias";
 import { PaginaVazia } from "./paginas/PaginaVazia";
 import { Tendencia } from "./paginas/Tendencia";
 import { VisaoGeral } from "./paginas/VisaoGeral";
@@ -39,6 +40,7 @@ const CONSTRUIDAS: Record<string, ComponentType> = {
   "/tendencia": Tendencia,
   "/vizinhas": CidadesVizinhas,
   "/condicoes": Condicoes,
+  "/noticias": Noticias,
 };
 
 export default function App() {

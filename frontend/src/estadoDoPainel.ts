@@ -3,7 +3,7 @@
  *
  * Mora fora do `Shell` porque um arquivo que exporta componente e hook ao
  * mesmo tempo quebra o fast refresh do Vite — e porque o tipo e o contrato
- * entre o layout e as seis paginas, nao detalhe de um deles.
+ * entre o layout e as oito paginas, nao detalhe de um deles.
  */
 
 import { useOutletContext } from "react-router";
@@ -36,9 +36,8 @@ export type ContextoDoPainel = { estado: Estado };
  *
  * O contexto do outlet cresceu — ele carrega a conta tambem, ver
  * `estadoDaConta.ts` —, e este hook continua devolvendo so o painel. E de
- * proposito: as cinco paginas que nao sabem que existe conta nao passam a
- * saber, e o tipo estreito e o que impede uma delas de ler `conta` sem
- * querer.
+ * proposito: as paginas que nao sabem que existe conta nao passam a saber, e o
+ * tipo estreito e o que impede uma delas de ler `conta` sem querer.
  */
 export function usePainel(): ContextoDoPainel {
   return useOutletContext<ContextoDoPainel>();
