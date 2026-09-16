@@ -44,3 +44,27 @@ def senha_confere(senha: str, hash_guardado: str) -> bool:
         # `VerifyMismatchError` e `InvalidHashError` sao ambas `Argon2Error`;
         # `ValueError` cobre o hash que a biblioteca nem tenta interpretar.
         return False
+
+
+#: Um hash de senha que nenhuma conta tem, calculado uma vez no import.
+#:
+#: Existe para a entrada com e-mail inexistente gastar o mesmo tempo que a
+#: entrada com senha errada. Sem ele, a recusa por conta inexistente voltaria
+#: **sem passar pelo Argon2** e seria dezenas de milissegundos mais rapida que
+#: a recusa por senha errada — e a diferenca e mensuravel pela rede. Quem
+#: quisesse descobrir quais e-mails tem conta nao precisaria ler a mensagem:
+#: bastaria cronometrar as respostas, e as duas mensagens iguais que o ticket
+#: pede nao teriam escondido nada.
+#:
+#: A senha que o gera e irrelevante — o que importa e o **custo** de verifica-la
+#: contra ela, que e o mesmo de qualquer outra.
+_HASH_DE_DESCARTE = _hasher.hash("nenhuma conta tem esta senha")
+
+
+def hash_de_descarte() -> str:
+    """O hash contra o qual verificar quando nao ha conta.
+
+    O resultado da verificacao e sempre `False` e nao deve ser lido: o que se
+    quer dele e o tempo gasto, nao a resposta.
+    """
+    return _HASH_DE_DESCARTE

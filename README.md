@@ -93,6 +93,8 @@ esconderia erros de SQL.
 | `GET /api/cities?q=` | Candidatas de cidade para desambiguação, com estado, país e população. Nada encontrado devolve `200` com lista vazia. |
 | `GET /api/weather?latitude=&longitude=&name=` | O painel da cidade escolhida. A identidade da cidade vem de `/api/cities` e viaja de volta como parâmetro. |
 | `POST /api/cadastro` | Cria a conta com e-mail e senha, **já abre a sessão** e devolve o cookie. `409` se o e-mail já tem conta. |
+| `POST /api/entrada` | Valida as credenciais e abre uma sessão nova. `401` para senha errada **e** para e-mail inexistente, com a mesma resposta. |
+| `POST /api/saida` | Apaga a linha da sessão e expira o cookie. `200` mesmo sem sessão. |
 | `GET /api/quem-sou` | A conta da sessão, ou `{"conta": null}`. É o que o frontend consulta ao abrir o app. |
 
 A documentação interativa fica em http://localhost:8000/docs, gerada dos
@@ -111,12 +113,23 @@ curl -c cookies.txt -X POST localhost:8000/api/cadastro \
 curl -b cookies.txt localhost:8000/api/quem-sou
 ```
 
+Entrar e sair fecham o ciclo — e sair de verdade apaga a linha:
+
+```bash
+curl -c cookies.txt -X POST localhost:8000/api/entrada \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"ana@exemplo.com","senha":"correia-de-bateria"}'
+
+curl -b cookies.txt -c cookies.txt -X POST localhost:8000/api/saida
+curl -b cookies.txt localhost:8000/api/quem-sou   # {"conta":null}
+```
+
 A sessão é um cookie `HttpOnly`, `SameSite=Lax`, `Secure` fora de
 desenvolvimento, com linha na tabela — nunca um token no armazenamento do
 navegador, que seria legível por qualquer script da página e não teria como ser
 revogado antes de expirar. Ver [ADR 0005](docs/adr/0005-sessao-em-cookie-nao-jwt.md).
 
-Três detalhes que surpreendem:
+Cinco detalhes que surpreendem:
 
 - **`/api/quem-sou` responde `200` mesmo sem sessão**, com `{"conta": null}`.
   Visitante sem conta é o estado normal de quem nunca entrou, não uma falha;
@@ -128,6 +141,16 @@ Três detalhes que surpreendem:
   origem com `allow_credentials=True` — que por sua vez proíbe
   `allow_origins=["*"]`. Em desenvolvimento nada disso aparece, porque o proxy
   do Vite faz o browser ver uma origem só.
+- **A recusa da entrada é uma só** para senha errada e e-mail inexistente —
+  mesmo status e mesmo corpo. Duas respostas diferentes deixariam qualquer um
+  descobrir quais e-mails têm conta, testando um por um. A entrada sem conta
+  ainda verifica a senha contra um hash de descarte, para gastar o mesmo tempo:
+  sem isso, a diferença de ~40 ms entregaria pelo relógio o que as mensagens
+  iguais escondem.
+- **`/api/saida` responde `200` sem sessão nenhuma.** Quem chega ali sem cookie
+  queria estar fora, e está; um `401` distinguiria o identificador que um dia
+  existiu do que nunca existiu. Uma conta pode ter várias sessões, e sair de uma
+  não derruba as outras.
 
 Quatro detalhes do contrato que surpreendem:
 

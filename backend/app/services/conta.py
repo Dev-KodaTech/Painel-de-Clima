@@ -28,6 +28,13 @@ MSG_SENHA_LONGA = f"A senha pode ter no maximo {MAXIMO_DA_SENHA} caracteres."
 MSG_EMAIL_INVALIDO = "Informe um e-mail valido."
 MSG_EMAIL_JA_USADO = "Ja existe uma conta com esse e-mail. Tente entrar."
 
+#: A recusa da entrada, **uma so para os dois casos**: e-mail sem conta e senha
+#: errada. Duas mensagens deixariam qualquer um descobrir quais e-mails tem
+#: conta, testando um por um — bastaria comparar a resposta de um endereco
+#: conhecido com a de um inventado. Por isso a constante e uma, e nao duas: com
+#: duas, a divergencia seria uma questao de alguem achar que estava ajudando.
+MSG_CREDENCIAIS_INVALIDAS = "E-mail ou senha incorretos."
+
 #: Deliberadamente frouxa. Validar e-mail por expressao regular e uma batalha
 #: perdida — a gramatica de verdade aceita aspas, comentarios e IP literal —, e
 #: uma regra apertada recusa endereco valido de gente real. O que se quer aqui
@@ -79,3 +86,19 @@ def validar_cadastro(email: str, senha: str) -> str:
         raise ContaInvalida(MSG_SENHA_LONGA)
 
     return normalizado
+
+
+def credenciais_da_entrada(email: str, senha: str) -> tuple[str, str]:
+    """As credenciais como elas vao para a busca: e-mail normalizado, senha crua.
+
+    **Nao valida formato nem tamanho**, ao contrario de `validar_cadastro`, e a
+    diferenca e deliberada. Recusar aqui um e-mail malformado ou uma senha
+    curta devolveria um `422` onde as credenciais erradas devolvem `401` — e
+    essa diferenca contaria a quem testa enderecos que o formato passou na
+    triagem. Quem entra com lixo recebe a mesma recusa de quem erra a senha.
+
+    O que sobra e a normalizacao, que precisa ser **a mesma** do cadastro: uma
+    entrada que nao tirasse o espaco em volta recusaria a conta que o cadastro
+    criou a partir do mesmo texto colado.
+    """
+    return normalizar_email(email), senha

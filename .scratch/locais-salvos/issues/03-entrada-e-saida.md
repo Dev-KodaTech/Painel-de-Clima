@@ -20,16 +20,16 @@ celular não pode encerrar a sessão do computador.
 
 **Blocked by:** 02
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] Entrar com credenciais corretas abre sessão e devolve o cookie
-- [ ] Entrar com senha errada é recusado
-- [ ] Entrar com e-mail inexistente é recusado com a **mesma** resposta da senha errada
-- [ ] Entrar não diferencia maiúsculas no e-mail
-- [ ] Sair apaga a sessão e expira o cookie
-- [ ] Depois de sair, o endpoint de quem sou responde que não há conta
-- [ ] Sair de uma sessão não invalida as outras sessões da mesma conta
-- [ ] Sair sem sessão não é erro
-- [ ] Entrar duas vezes produz duas sessões independentes
-- [ ] Uma sessão expirada é recusada como se não existisse
-- [ ] Os testes usam a costura HTTP, com o banco em memória
+- [x] Entrar com credenciais corretas abre sessão e devolve o cookie
+- [x] Entrar com senha errada é recusado
+- [x] Entrar com e-mail inexistente é recusado com a **mesma** resposta da senha errada
+- [x] Entrar não diferencia maiúsculas no e-mail
+- [x] Sair apaga a sessão e expira o cookie
+- [x] Depois de sair, o endpoint de quem sou responde que não há conta
+- [x] Sair de uma sessão não invalida as outras sessões da mesma conta
+- [x] Sair sem sessão não é erro
+- [x] Entrar duas vezes produz duas sessões independentes
+- [x] Uma sessão expirada é recusada como se não existisse
+- [x] Os testes usam a costura HTTP, com o banco em memória
