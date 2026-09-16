@@ -84,7 +84,21 @@ export function CidadesVizinhas() {
 
   return (
     <section className="flex flex-col gap-4 py-2">
+      {/* A `key` na coordenada da cidade escolhida: trocar de cidade **remonta**
+          a tabela, e o criterio de ordenacao volta a distancia.
+
+          Sem ela a tabela sobreviveria a troca com o criterio anterior. Uma
+          ordenacao por temperatura e uma pergunta feita sobre *aquela* regiao —
+          "onde esta mais quente em volta de Berlim" —, e carrega-la para a
+          proxima cidade responderia uma pergunta que ninguem fez, ainda por
+          cima num intervalo em que a tabela sai da tela para carregar e volta
+          ja ordenada.
+
+          Na coordenada e nao no nome: duas cidades homonimas do mesmo pais sao
+          cidades diferentes, e a coordenada e o que as distingue — a mesma
+          identidade que `chaveDaLinha` usa nas linhas. */}
       <TabelaComparativa
+        key={`${painel.location.latitude},${painel.location.longitude}`}
         location={painel.location}
         current={painel.current}
         nearby={painel.nearby}

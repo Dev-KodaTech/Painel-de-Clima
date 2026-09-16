@@ -87,6 +87,25 @@ export function temperatura(valor: number, unidade: string): string {
   return `${Math.round(valor)}${unidade}`;
 }
 
+/**
+ * "18,7 °C": a temperatura **sem** arredondar, para o `title` de uma celula.
+ *
+ * Existe por causa da tabela ordenavel das cidades vizinhas: 18,7 °C e
+ * 18,5 °C sao ambos "19 °C" arredondados, e ordenadas por temperatura essas
+ * linhas ficam uma sobre a outra parecendo fora de ordem. A ordem esta certa —
+ * a ordenacao compara o numero do payload, nao o texto —, e isto e o que
+ * permite conferir.
+ *
+ * Separada de `temperatura` e nao um parametro dela: sao dois usos distintos —
+ * um e o numero que se le na tela, o outro e o que se consulta ao duvidar
+ * dele —, e o grau redondo continua sendo o que o app mostra em toda parte.
+ *
+ * A virgula decimal como no resto deste modulo: a interface e pt-BR.
+ */
+export function temperaturaExata(valor: number, unidade: string): string {
+  return `${String(valor).replace(".", ",")}${unidade}`;
+}
+
 /** "3,4 mi de habitantes" / "170 mil habitantes": distingue candidatas. */
 export function populacao(valor: number | null): string | null {
   if (valor === null || valor <= 0) return null;

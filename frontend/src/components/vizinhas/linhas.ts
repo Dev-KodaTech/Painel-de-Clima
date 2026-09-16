@@ -21,12 +21,15 @@
  *
  * ## Funcao pura, exportada, com a tabela do lado de fora
  *
- * A spec chama esta a **unica** costura da entrega: dado um conjunto de
- * vizinhas, o que sai e em que ordem. O frontend deste repo nao tem suite de
- * testes — decisao do ticket 12 do esforco original, que esta pagina nao
- * inverte de carona —, entao a costura fica preparada e nao exercitada: no dia
- * em que o repo decidir testar o frontend, o alvo ja esta aqui, sem componente
- * nem contexto de rota em volta.
+ * A spec chama `ordenarLinhas`, no fim deste arquivo, a **unica** costura da
+ * entrega: dado um conjunto de vizinhas e um criterio, o que sai e em que
+ * ordem. E a unica logica desta pagina que pode estar errada — o resto e
+ * marcacao.
+ *
+ * O frontend deste repo nao tem suite de testes — decisao do ticket 12 do
+ * esforco original, que esta pagina nao inverte de carona —, entao a costura
+ * fica preparada e nao exercitada: no dia em que o repo decidir testar o
+ * frontend, o alvo ja esta aqui, sem componente nem contexto de rota em volta.
  */
 
 import type { Current, Location, Nearby } from "../../api/types";
@@ -99,17 +102,21 @@ function daVizinha(vizinha: Nearby): Linha {
 }
 
 /**
- * As linhas na ordem de exibicao: a cidade escolhida, depois as vizinhas.
+ * As linhas antes de ordenar: a cidade escolhida, depois as vizinhas.
  *
- * A ordem das vizinhas e a que o backend entrega — da mais perto para a mais
- * longe —, e por isso nao ha `sort` aqui: reordenar por `distance_km` daria o
- * mesmo resultado com uma chance a mais de errar.
+ * A ordem aqui e a que o backend entrega — da mais perto para a mais longe —,
+ * e por isso nao ha `sort`: e a ordem de origem, e quem a reordena e
+ * `ordenarLinhas`. Sendo a ordem de origem, e tambem o desempate de
+ * `ordenarLinhas`, que e o que torna a ordenacao estavel.
  *
- * A escolhida vem primeiro por ser a origem. O ticket 03 acrescenta o criterio
- * de ordenacao; a assinatura ja e a que ele precisa, e e por isso que esta
- * funcao existe separada da tabela desde agora.
+ * A escolhida vem primeiro por ser a origem de quem as distancias sao medidas.
+ *
+ * Interna: quem sai deste arquivo e `ordenarLinhas`, que e a costura que a spec
+ * nomeia. Esta funcao foi exportada enquanto a tabela ainda nao ordenava e a
+ * tabela a chamava direto; exporta-la agora seria oferecer um segundo jeito de
+ * montar as mesmas linhas, sem a ordem.
  */
-export function linhasDaTabela(
+function linhasDaTabela(
   location: Location,
   current: Current,
   nearby: Nearby[],
@@ -125,11 +132,147 @@ export function linhasDaTabela(
  * payload no ticket 01 —, e ali a distancia arredondada ao inteiro deixa duas
  * homonimas do mesmo pais colidirem no mesmo quilometro.
  *
- * A diferenca importa **a partir do ticket 03**: enquanto a ordem e fixa, uma
- * chave repetida so avisa no console; com a tabela reordenavel, e o React
- * reaproveitando a linha errada — a cidade que muda de lugar leva consigo o
- * estado da outra.
+ * A diferenca importa agora que a tabela reordena: com ordem fixa, uma chave
+ * repetida so avisa no console; reordenando, e o React reaproveitando a linha
+ * errada — a cidade que muda de lugar leva consigo o estado da outra.
  */
 export function chaveDaLinha(linha: Linha): string {
   return `${linha.latitude},${linha.longitude}`;
+}
+
+/**
+ * Por qual criterio a tabela esta ordenada.
+ *
+ * Uniao fechada e nao `string`, como `Janela`: sao os dois criterios que fazem
+ * sentido nesta tabela, e um terceiro inventado nao compila.
+ */
+export type Criterio = "temperatura" | "distancia";
+
+/**
+ * Tudo o que distingue um criterio do outro, num lugar so.
+ *
+ * ## Por que os tres campos moram juntos
+ *
+ * Cada criterio tem uma **direcao**, e ela aparecia em tres lugares: o sinal da
+ * comparacao em `ordenarLinhas`, o valor de `aria-sort` no cabecalho e o
+ * triangulo ao lado do rotulo. Tres decisoes sobre a mesma coisa, em dois
+ * arquivos, que precisavam concordar por vigilancia — e um `aria-sort`
+ * discordando da ordem real e pior que anuncio nenhum, porque afirma com
+ * confianca o que nao e verdade.
+ *
+ * Juntos aqui, a concordancia deixa de ser vigilancia e passa a ser estrutura:
+ * a ordem, o anuncio e o glifo saem todos da mesma linha desta tabela.
+ *
+ * ## `Record<Criterio, ...>` e nao uma lista
+ *
+ * O compilador cobra uma entrada para **todo** criterio, e a consulta e total —
+ * nao devolve `undefined` nem precisa de assercao. Acrescentar um terceiro
+ * criterio a uniao quebra a compilacao aqui, que e exatamente onde deve
+ * quebrar: no lugar em que se decide o que o criterio novo significa.
+ */
+export const CRITERIOS: Record<
+  Criterio,
+  {
+    /** O rotulo da coluna que ordena por este criterio. */
+    rotulo: string;
+    /**
+     * `1` para crescente, `-1` para decrescente: o multiplicador da comparacao
+     * em `ordenarLinhas`.
+     *
+     * A distancia cresce — a mais proxima primeiro, que e a ordem em que o
+     * backend ja entrega. A temperatura decresce, porque a pergunta que motiva
+     * ordenar por temperatura e "onde esta mais quente agora".
+     */
+    sentido: 1 | -1;
+    /** Como um leitor de tela anuncia a coluna ordenada por este criterio. */
+    anuncio: "ascending" | "descending";
+    /** O mesmo que `anuncio` diz a quem ouve, para quem enxerga. */
+    glifo: string;
+  }
+> = {
+  distancia: {
+    rotulo: "Distancia",
+    sentido: 1,
+    anuncio: "ascending",
+    glifo: "▲",
+  },
+  temperatura: {
+    rotulo: "Temperatura",
+    sentido: -1,
+    anuncio: "descending",
+    glifo: "▼",
+  },
+};
+
+/**
+ * As linhas na ordem de exibicao, segundo o criterio escolhido.
+ *
+ * ## Por que a cidade escolhida muda de papel conforme o criterio
+ *
+ * Por **distancia** ela fica em primeiro, fora da comparacao: e a origem de
+ * quem as distancias sao medidas, e `distancia_km` e `null` nela — nao ha
+ * numero para ordenar. Ordenar o nulo como zero a poria em primeiro pelo motivo
+ * errado, dizendo "a mais proxima" onde o certo e "o ponto de partida".
+ *
+ * Por **temperatura** ela entra na comparacao como qualquer outra linha, e e
+ * esse o resultado interessante: descobrir que a cidade escolhida e a mais fria
+ * das seis so tem sentido se ela estiver na fila. Fixa-la no topo aqui
+ * responderia a pergunta errada — "onde esta mais quente" deixaria de fora
+ * justamente a cidade de quem pergunta.
+ *
+ * ## A direcao nao se decide aqui
+ *
+ * O sentido de cada criterio — a temperatura decrescente, a distancia
+ * crescente — vem de `CRITERIOS`, junto com o anuncio e o glifo que dizem o
+ * mesmo na tela. Ver ali por que os tres moram juntos.
+ *
+ * ## O desempate e explicito
+ *
+ * Duas cidades a 18 °C empatam, e sem desempate a ordem delas ficaria por
+ * conta do algoritmo de ordenacao. O `sort` do JavaScript e estavel por
+ * especificacao, mas depender disso deixaria a garantia num detalhe que nao se
+ * le aqui — e a garantia que o ticket pede e justamente que a mesma entrada
+ * produza sempre a mesma ordem. O indice de origem resolve na propria funcao:
+ * empatou, vence quem ja vinha antes, que e a ordem da distancia vinda do
+ * backend.
+ */
+export function ordenarLinhas(
+  location: Location,
+  current: Current,
+  nearby: Nearby[],
+  criterio: Criterio,
+): Linha[] {
+  const linhas = linhasDaTabela(location, current, nearby);
+
+  // O indice de origem viaja junto porque `sort` ordena no lugar e apaga a
+  // ordem anterior no meio da comparacao: consultar `linhas.indexOf` la dentro
+  // leria o arranjo ja meio reordenado.
+  const comOrigem = linhas.map((linha, origem) => ({ linha, origem }));
+
+  const { sentido } = CRITERIOS[criterio];
+
+  comOrigem.sort((a, b) => {
+    if (criterio === "temperatura") {
+      const porTemperatura =
+        sentido * (a.linha.temperatura - b.linha.temperatura);
+      if (porTemperatura !== 0) return porTemperatura;
+    } else {
+      // A escolhida antes de qualquer vizinha, por ser a origem — e fora do
+      // `sentido`, que governa a comparacao entre vizinhas e nao o lugar da
+      // referencia. Comparar duas escolhidas nao acontece: ha exatamente uma.
+      if (a.linha.ehEscolhida !== b.linha.ehEscolhida) {
+        return a.linha.ehEscolhida ? -1 : 1;
+      }
+      // Aqui nenhuma das duas e a escolhida, entao nenhum `distancia_km` e
+      // nulo. O `?? 0` existe para o compilador e nao para o caso: o tipo
+      // permite o nulo, a ramificacao acima ja o excluiu.
+      const porDistancia =
+        sentido * ((a.linha.distancia_km ?? 0) - (b.linha.distancia_km ?? 0));
+      if (porDistancia !== 0) return porDistancia;
+    }
+
+    return a.origem - b.origem;
+  });
+
+  return comOrigem.map(({ linha }) => linha);
 }
