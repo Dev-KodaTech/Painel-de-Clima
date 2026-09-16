@@ -91,3 +91,49 @@ body {
   color: var(--color-ink);
   font-family: var(--font-sans);
 }
+
+/*
+ * O mapa da regiao no tema escuro.
+ *
+ * Os tiles do OpenStreetMap sao claros e so existem claros — nao ha variante
+ * escura sem trocar de fornecedor, que exigiria chave e conta (ADR 0006). Um
+ * retangulo de 360 px de mapa branco no meio de uma pagina escura e exatamente
+ * o clarao que o tema existe para evitar.
+ *
+ * O filtro e a saida que a spec preve. `invert` + `hue-rotate` mantem as cores
+ * reconheciveis depois da inversao — sem o giro de matiz a agua fica laranja —,
+ * e o `brightness`/`contrast` recupera o que a inversao lava. Aplicado **so na
+ * camada de tiles**: nos marcadores ele inverteria os tokens de cor que eles
+ * acabaram de receber do tema, e no controle de zoom, o texto.
+ */
+:root[data-tema="escuro"] .leaflet-tile-pane {
+  filter: invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9);
+}
+
+/*
+ * O fundo sob os tiles, e a fonte do mapa.
+ *
+ * O padrao do Leaflet e um cinza `#ddd` fixo, que aparece no instante antes do
+ * primeiro tile e nas bordas enquanto se arrasta — claro nos dois temas, e por
+ * isso um clarao no escuro. Usar `--color-page` faz esse vao ser o fundo da
+ * propria pagina, em qualquer tema.
+ *
+ * O `font-family` alcanca o credito e o popup, que de outro modo sairiam na
+ * Helvetica do Leaflet no meio de uma pagina inteira em Poppins.
+ */
+.leaflet-container {
+  background-color: var(--color-page);
+  font-family: var(--font-sans);
+}
+
+/* O credito do OpenStreetMap: obrigatorio, e por isso legivel nos dois temas —
+   o padrao do Leaflet e um branco fixo que some sobre o mapa invertido. */
+.leaflet-control-attribution {
+  background-color: var(--color-card) !important;
+  color: var(--color-ink-3);
+  font-size: 10px;
+}
+
+.leaflet-control-attribution a {
+  color: var(--color-brand-text);
+}

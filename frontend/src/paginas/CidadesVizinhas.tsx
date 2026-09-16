@@ -35,6 +35,8 @@
  */
 
 import { usePainel } from "../estadoDoPainel";
+import { MapaDaRegiao } from "../components/vizinhas/MapaDaRegiao";
+import { Painel } from "../components/Painel";
 import { TabelaComparativa } from "../components/vizinhas/TabelaComparativa";
 
 export function CidadesVizinhas() {
@@ -104,6 +106,30 @@ export function CidadesVizinhas() {
         nearby={painel.nearby}
         units={painel.units}
       />
+
+      {/* O mapa depois da tabela, e nao antes: a tabela responde "quanto faz em
+          cada uma", que e a pergunta que traz alguem a esta pagina, e o mapa
+          responde "onde isso fica", que e a pergunta seguinte. Quem chega
+          querendo comparar temperaturas nao rola um mapa para chegar nelas.
+
+          Sem `key` aqui, ao contrario da tabela: o mapa **reage** a troca de
+          cidade reenquadrando, no seu proprio efeito, e remonta-lo destruiria e
+          recriaria a instancia do Leaflet a cada troca — jogando fora o custo
+          de criar o mapa e piscando os tiles, para chegar ao mesmo lugar. */}
+      <Painel titulo="Mapa da regiao">
+        <MapaDaRegiao
+          escolhida={{
+            nome: painel.location.name,
+            latitude: painel.location.latitude,
+            longitude: painel.location.longitude,
+          }}
+          vizinhas={painel.nearby.map((vizinha) => ({
+            nome: vizinha.name,
+            latitude: vizinha.latitude,
+            longitude: vizinha.longitude,
+          }))}
+        />
+      </Painel>
     </section>
   );
 }
