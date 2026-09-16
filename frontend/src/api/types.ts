@@ -101,7 +101,7 @@ export type Sun = {
  * informacao em que pessoas tomam decisao de seguranca, e a fonte aqui nao e
  * defesa civil. A interface rotula cada card como derivado.
  */
-export type Alerta = {
+export type CondicaoPrevista = {
   kind: "storm" | "wind" | "rain";
   /** Data local da cidade do dia representado. */
   date: string;
@@ -155,8 +155,9 @@ export type WeatherResponse = {
   /** Sete dias, comecando hoje. */
   daily: DailyPoint[];
   sun: Sun;
-  /** No maximo duas. Lista vazia e o caminho normal, nao erro. */
-  alerts: Alerta[];
+  /** No maximo duas aqui — o teto e do layout deste painel, nao do dado. Lista
+   * vazia e o caminho normal, nao erro. */
+  condicoes: CondicaoPrevista[];
   /** Ate cinco, da mais perto para a mais longe. Pode ter menos numa cidade
    * cujas vizinhas acabam antes — Honolulu tem quatro. */
   nearby: Nearby[];

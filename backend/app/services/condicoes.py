@@ -16,7 +16,7 @@ galho em Wellington igual a Cairo.
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 
-from app.models import Alerta
+from app.models import CondicaoPrevista
 
 #: Rajada maxima do dia, em km/h. Calibrado sobre 42 dias-cidade: >=40 marca
 #: 26% dos dias e >=50 marca 21% (ruidoso demais); >=80 perde eventos reais.
@@ -129,9 +129,9 @@ def _pior_dia(categoria: _Categoria, daily: dict, indices: Iterable[int]) -> int
     )
 
 
-def _card(categoria: _Categoria, daily: dict, indices: list[int]) -> Alerta:
+def _card(categoria: _Categoria, daily: dict, indices: list[int]) -> CondicaoPrevista:
     indice = _pior_dia(categoria, daily, indices)
-    return Alerta(
+    return CondicaoPrevista(
         kind=categoria.kind,
         date=daily["time"][indice],
         label=categoria.label,
@@ -142,7 +142,7 @@ def _card(categoria: _Categoria, daily: dict, indices: list[int]) -> Alerta:
     )
 
 
-def derivar(daily: dict) -> list[Alerta]:
+def derivar(daily: dict) -> list[CondicaoPrevista]:
     """As condicoes severas de uma semana: no maximo um card por categoria.
 
     **O dedup por categoria e a parte essencial**, nao um refinamento. Sem ele,

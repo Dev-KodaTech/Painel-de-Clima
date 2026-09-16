@@ -36,10 +36,10 @@ BERLIM = {
 
 
 def _alertas(daily: dict | None = None) -> list[dict]:
-    """O bloco `alerts` do painel para uma semana de clima."""
+    """O bloco `condicoes` do painel para uma semana de clima."""
     payload = forecast_com_daily(daily) if daily else FORECAST_BERLIM
     respx.get(FORECAST_URL).mock(return_value=httpx.Response(200, json=payload))
-    return client.get("/api/weather", params=BERLIM).json()["alerts"]
+    return client.get("/api/weather", params=BERLIM).json()["condicoes"]
 
 
 @respx.mock

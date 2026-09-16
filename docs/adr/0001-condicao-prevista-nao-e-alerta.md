@@ -1,5 +1,10 @@
 # Condição prevista não é alerta, mas o campo do payload se chama `alerts`
 
+> **Superseded pelo [ADR 0007](0007-alerta-oficial-e-condicao-prevista-coexistem.md).**
+> A condição de revogação prevista na última seção deste registro se realizou: o
+> app passou a exibir alertas do INMET, e o campo foi renomeado. O que este
+> registro estabeleceu sobre o rótulo de proveniência por card continua valendo.
+
 A fonte externa não tem alertas meteorológicos, então os avisos de tempo severo
 são derivados por nós da própria previsão. A distinção importa porque alerta é a
 categoria de informação em que pessoas tomam decisão de segurança: no domínio e

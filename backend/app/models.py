@@ -138,7 +138,7 @@ class Sun(BaseModel):
     sunset: str
 
 
-class Alerta(BaseModel):
+class CondicaoPrevista(BaseModel):
     """Uma condicao severa **derivada da previsao**, nao um alerta oficial.
 
     A Open-Meteo nao tem alertas meteorologicos, e a distincao importa: alerta
@@ -210,11 +210,12 @@ class WeatherResponse(BaseModel):
     hourly: list[HourlyPoint]
     daily: list[DailyPoint]
     sun: Sun
-    alerts: list[Alerta] = Field(
+    condicoes: list[CondicaoPrevista] = Field(
         description=(
-            "Condicoes severas previstas, no maximo duas. Lista vazia e o "
-            "caminho normal, nao erro: duas das seis cidades da amostra caem "
-            "nele, e o painel mostra o estado vazio em vez de sumir."
+            "Condicoes severas previstas. No maximo duas aqui — o teto e do "
+            "layout deste painel, nao do dado. Lista vazia e o caminho "
+            "normal, nao erro: duas das seis cidades da amostra caem nele, e "
+            "o painel mostra o estado vazio em vez de sumir."
         )
     )
     nearby: list[Nearby] = Field(

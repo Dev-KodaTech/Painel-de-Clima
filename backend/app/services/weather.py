@@ -17,7 +17,7 @@ from app.models import (
     Units,
     WeatherResponse,
 )
-from app.services import alertas, open_meteo, reverso, vizinhas
+from app.services import condicoes, open_meteo, reverso, vizinhas
 from app.services.geonames import CidadeLocal
 from app.services.wmo import traduzir
 
@@ -235,7 +235,7 @@ def _montar(
         ),
         # Derivadas da mesma semana que o painel exibe: nao ha fonte oficial de
         # alerta aqui, e a interface diz isso em cada card.
-        alerts=alertas.derivar(daily),
+        condicoes=condicoes.derivar(daily),
         nearby=nearby,
         units=Units(**UNIDADES_PADRAO),
         attribution=ATRIBUICAO,

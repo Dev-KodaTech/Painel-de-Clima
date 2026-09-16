@@ -1,7 +1,7 @@
 """Os agregados do historico climatologico. Puro: sem rede, sem cache.
 
 Existe separado do modulo que busca porque e **regra nossa**, nao repasse de
-dado — o mesmo criterio que deu modulo proprio a `alertas` e `vizinhas`. Media,
+dado — o mesmo criterio que deu modulo proprio a `condicoes` e `vizinhas`. Media,
 acumulado e contagem sobre ate 180 pontos sao a mesma operacao para qualquer
 cliente, e calcula-las aqui impede que a pagina reimplemente estatistica.
 

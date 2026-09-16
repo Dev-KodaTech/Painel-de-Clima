@@ -12,13 +12,13 @@
  * ou tempestade. No lugar vao categoria, data e o valor que disparou.
  */
 
-import type { Alerta } from "../api/types";
+import type { CondicaoPrevista } from "../api/types";
 import { dataCurta, diaDaSemanaCurto } from "../formato";
 import { Painel } from "./Painel";
 import { WeatherIcon } from "./WeatherIcon";
 
 type Props = {
-  alerts: Alerta[];
+  condicoes: CondicaoPrevista[];
 };
 
 /** "Sex, 16 set" — o dia que o card representa, sem ambiguidade na semana. */
@@ -51,10 +51,10 @@ function outrosDias(quantidade: number): string | null {
  */
 const ALTURA = "h-faixa3";
 
-export function CondicoesPrevistas({ alerts }: Props) {
+export function CondicoesPrevistas({ condicoes }: Props) {
   return (
     <Painel titulo="Condicoes previstas">
-      {alerts.length === 0 ? (
+      {condicoes.length === 0 ? (
         <div className={`flex ${ALTURA} flex-col items-center justify-center gap-1`}>
           <WeatherIcon
             icon="clear-day"
@@ -66,7 +66,7 @@ export function CondicoesPrevistas({ alerts }: Props) {
         </div>
       ) : (
         <ul className={`flex ${ALTURA} flex-col gap-2.5`}>
-          {alerts.map((alerta) => (
+          {condicoes.map((alerta) => (
             <li
               key={alerta.kind}
               className="flex items-center gap-3 rounded-inner bg-brand-soft p-2.5"

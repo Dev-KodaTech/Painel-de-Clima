@@ -27,7 +27,7 @@ async def trends(
     # **`Literal`, e nao `str`**: as tres janelas sao um conjunto fechado, e um
     # valor livre viraria aritmetica de data com entrada arbitraria — `6000d` e
     # uma requisicao de dezesseis anos a API externa. Fora do conjunto e `422`
-    # pelo validador, sem codigo nosso, como `Alerta.kind` ja e.
+    # pelo validador, sem codigo nosso, como `CondicaoPrevista.kind` ja e.
     janela: Janela = Query(default="7d"),
 ) -> TrendsResponse:
     """O historico climatologico de uma coordenada, para uma janela temporal.

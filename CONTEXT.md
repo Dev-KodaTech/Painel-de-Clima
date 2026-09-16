@@ -54,15 +54,65 @@ _Avoid_: cidade próxima, região, redondeza — **como nome da cidade vizinha**
 
 **Condição prevista**:
 Um aviso de tempo severo que *nós* derivamos da previsão — tempestade, vento
-forte ou chuva intensa. Nunca é chamada de alerta: alerta é a categoria de
-informação em que pessoas tomam decisão de segurança, e esta não vem de fonte
-oficial.
+forte ou chuva intensa. Não é alerta, e a diferença é de origem, não de
+gravidade: a condição prevista sai de um limiar que nós calibramos sobre os
+números da previsão, e ninguém a assinou.
+
+Enquanto o app não tinha fonte oficial, "alerta" era só uma palavra proibida.
+Agora é o verbete ao lado, e a proibição fica mais estreita e mais séria: chamar
+uma condição prevista de alerta passou a ser confundi-la com *outra coisa que
+existe no app*, não mais exagerar sozinha.
 _Avoid_: alerta, aviso oficial, warning
 
+**Alerta**:
+Um aviso meteorológico emitido por autoridade — no Brasil, o INMET. Traz o que
+uma condição prevista não pode ter: severidade oficial, janela de validade
+declarada por quem emitiu, e recomendações de segurança.
+
+Existe para uma região, não para uma cidade: o alerta cobre um polígono, e a
+cidade escolhida está dentro ou fora dele. Por isso o mesmo alerta aparece em
+muitas cidades, e não é "o alerta de Sorocaba".
+
+Só existe no Brasil, e isso não é um detalhe de cobertura que se possa omitir:
+não ter alerta e não ser coberto são estados diferentes, e apresentá-los igual
+diria a quem está em Wellington que não há aviso quando na verdade não há dado.
+_Avoid_: aviso, condição prevista, warning
+
+**Fonte oficial**:
+Quem tem autoridade para emitir alerta. O que separa alerta de condição prevista
+é isto e só isto — não a gravidade do tempo, não a qualidade do dado.
+_Avoid_: fonte confiável, fonte primária
+
 **API externa**:
-O serviço público de onde vêm os dados de clima e geocodificação. Só o backend
-fala com ela; o frontend nunca.
-_Avoid_: provedor, upstream, fonte
+Cada serviço público de onde vêm os dados. Eram um só — a Open-Meteo — e hoje
+são três: a Open-Meteo (clima e geocodificação), o INMET (alertas) e os feeds
+dos veículos (notícias). Só o backend fala com elas; o frontend nunca.
+
+O que continua valendo do singular original é a restrição que importava: nenhuma
+delas exige chave nem tem cota. Não era "um fornecedor", era "nada de chave" —
+e foi preciso acrescentar fornecedor para descobrir qual das duas regras era a
+regra.
+_Avoid_: provedor, upstream, fonte (sem qualificar)
+
+### Notícias
+
+**Notícia**:
+Uma matéria publicada por um veículo, sobre clima ou meio ambiente, trazida de
+feed público. Não é dado meteorológico: ninguém a calculou, ela não descreve a
+cidade escolhida e nada no app depende dela.
+
+É o único conteúdo que **não** é sobre a cidade escolhida. Todo o resto do app
+responde "e aqui?"; a notícia é nacional e continua a mesma em Sorocaba e em
+Belém. Foi por isso que ganhou página própria em vez de virar uma terceira seção
+da página Condições — não por tamanho, mas porque juntá-la a alertas e condições
+faria a página prometer relevância local que a notícia não tem.
+_Avoid_: artigo, post, feed (como sinônimo de notícia)
+
+**Veículo**:
+Quem publica a notícia — a Agência Brasil, o Observatório do Clima, a Pesquisa
+FAPESP. Sempre nomeado junto da notícia: a licença exige crédito, e uma matéria
+sem veículo não deixa a pessoa julgar o que está lendo.
+_Avoid_: fonte, publisher, portal
 
 ### Histórico
 
@@ -103,16 +153,28 @@ não tem termo de domínio — é `WeatherResponse` no código e nada mais.
 _Avoid_: card, widget, bloco, "o painel completo"
 
 **Página**:
-Uma das sete visões alcançáveis pela barra lateral: Visão geral, Tendência,
-Cidades vizinhas, Locais salvos, Condições previstas, Sete dias e Ajustes. Uma
+Uma das oito visões alcançáveis pela barra lateral: Visão geral, Tendência,
+Cidades vizinhas, Locais salvos, Condições, Sete dias, Notícias e Ajustes. Uma
 página ocupa a área de conteúdo inteira e tem URL própria.
 
-Seis delas mostram a mesma coisa para qualquer pessoa que abra a URL. Locais
+Sete delas mostram a mesma coisa para qualquer pessoa que abra a URL. Locais
 salvos é a exceção — a mesma URL mostra conteúdo diferente conforme a conta.
 
 Distinta de painel: um painel mora *dentro* de uma página, e a mesma informação
 pode aparecer resumida num painel da Visão geral e por inteiro na sua página.
 _Avoid_: aba, tela, rota, seção
+
+**Página Condições**:
+A página que reúne, para a cidade escolhida, os alertas que a cobrem e as
+condições previstas dos próximos sete dias. Duas seções, não uma lista só —
+misturá-las apagaria a fronteira entre o que é oficial e o que é nosso.
+
+Chama-se **Condições**, não "Condições previstas": o nome antigo descrevia só
+metade do que a página passou a mostrar, e um título que nomeia metade do
+conteúdo é pior que um genérico. Ao falar do termo, diga "condição prevista";
+ao falar da página, diga "a página Condições" — é o mesmo cuidado que
+*tendência* já exige.
+_Avoid_: alertas (como nome da página), "condições previstas" (como nome da página)
 
 **Tendência**:
 A palavra nomeia **duas coisas**, e o registro existe para que ninguém as

@@ -78,7 +78,7 @@ export function VisaoGeral() {
           sete dias que a faixa 2 exibe. */}
       <div className="grid grid-cols-[1.2fr_1fr] gap-4">
         <Precipitacao daily={painel.daily} units={painel.units} />
-        <CondicoesPrevistas alerts={painel.alerts} />
+        <CondicoesPrevistas condicoes={painel.condicoes} />
       </div>
     </div>
   );

@@ -44,7 +44,7 @@ def test_painel_traz_um_bloco_por_painel_da_interface():
         "hourly",
         "daily",
         "sun",
-        "alerts",
+        "condicoes",
         "nearby",
         "units",
         "attribution",
