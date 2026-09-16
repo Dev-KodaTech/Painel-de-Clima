@@ -83,10 +83,15 @@ export const PAGINAS: Pagina[] = [
     Icone: IconeLista,
   },
   {
-    caminho: "/semana",
-    titulo: "Sete dias",
+    // Era `/semana`, titulada "Sete dias", e nao ganhou redirect: a pagina
+    // nunca passou de um stub que renderizava a propria promessa, e um redirect
+    // existe para nao quebrar link compartilhado. Ninguem compartilha o link de
+    // uma pagina que nunca mostrou nada. `/semana` cai no `NaoEncontrada`, como
+    // qualquer outra rota que nao existe.
+    caminho: "/calendario",
+    titulo: "Calendario",
     oQueVem:
-      "A previsao dos sete dias expandida, com mais que icone, maxima e minima. Ainda nao construida.",
+      "Dezesseis dias numa grade, com uma fronteira no dia 8: ate la, icone, maxima, minima e a aptidao do dia para a atividade escolhida; depois, probabilidade de chuva e menos detalhe, porque a fonte ja e outro modelo. Para quem tem conta, os planos de cada dia ao lado.",
     Icone: IconeCalendario,
   },
   {

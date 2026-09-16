@@ -178,7 +178,7 @@ outras cinco existem como rota e mostram o que vai entrar nelas.
 | `/tendencia` | Tendência |
 | `/vizinhas` | Cidades vizinhas |
 | `/condicoes` | Condições previstas |
-| `/semana` | Sete dias |
+| `/calendario` | Calendário |
 | `/ajustes` | Ajustes |
 
 **A cidade escolhida mora na URL**, não em estado de componente — ver
