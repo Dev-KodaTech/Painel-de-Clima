@@ -44,7 +44,7 @@ export type Pagina = {
   /**
    * Se a pagina **nao** depende da cidade escolhida.
    *
-   * Notícias e a unica: as materias sao nacionais e continuam as mesmas em
+   * Noticias e a unica: as materias sao nacionais e continuam as mesmas em
    * Sorocaba e em Belem (ADR 0009). Sem esta marca, ela mostraria "Busque uma
    * cidade" para depois exibir uma lista que nunca precisou de cidade alguma.
    *
@@ -136,7 +136,7 @@ export const ehTelaDeConta = (caminho: string) =>
  * A cidade mora nos parametros da URL (ADR 0002), e um `<Link to="/entrada">`
  * seco os descartaria: quem entrasse a partir de um painel carregado voltaria
  * para o app sem cidade nenhuma, e o painel recomecaria do zero. A barra
- * lateral ja resolve isto nos seus seis links, pelo mesmo motivo; aqui a
+ * lateral ja resolve isto em todos os seus links, pelo mesmo motivo; aqui a
  * mesma regra vira hook porque quem a usa sao quatro lugares diferentes.
  *
  * Hook, e nao funcao que le `window.location`: o `search` precisa vir do

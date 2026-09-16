@@ -79,7 +79,7 @@ export function Shell() {
       })
       .catch(() => {
         if (controller.signal.aborted) return;
-        // Falhar a consulta e ser visitante: e o estado em que as outras seis
+        // Falhar a consulta e ser visitante: e o estado em que as outras sete
         // paginas funcionam inteiras. Ver `EstadoDaConta`, que por isso nao
         // tem caso de erro.
         setConta({ tipo: "visitante" });

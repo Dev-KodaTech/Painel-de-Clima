@@ -105,7 +105,7 @@ function Cromo() {
  * A conta no cabecalho: quem esta entrado, ou o caminho para entrar.
  *
  * E o que torna as duas telas **alcancaveis de qualquer pagina**, que e o
- * pedido do ticket: o cabecalho esta em todas as seis, e os dois links moram
+ * pedido do ticket: o cabecalho esta em todas elas, e os dois links moram
  * nele.
  *
  * Enquanto a consulta nao volta, nao desenha nada. Um "Entrar" que aparece e

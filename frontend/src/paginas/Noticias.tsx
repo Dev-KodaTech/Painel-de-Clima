@@ -238,9 +238,11 @@ function ListaDeNoticias({
       <ul className="flex flex-col">
         {noticias.map((noticia, indice) => (
           <li
-            // O link e o identificador estavel da materia; o indice acompanha
-            // porque dois veiculos podem republicar a mesma URL.
-            key={`${noticia.link}-${indice}`}
+            // O indice, e nao o link: a lista nunca e reordenada nem filtrada
+            // depois de montada — chega pronta do backend e so se substitui
+            // inteira —, entao a posicao e identidade estavel aqui. O link
+            // sozinho nao serviria: dois veiculos podem republicar a mesma URL.
+            key={indice}
             className="border-b border-line last:border-b-0"
           >
             <a

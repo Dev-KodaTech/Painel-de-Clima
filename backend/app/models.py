@@ -78,7 +78,11 @@ def atribuicao_das_noticias(veiculos: list[str]) -> str:
     """
     if not veiculos:
         return ""
-    return f"Notícias: {' · '.join(veiculos)}"
+    # `Noticias:` sem acento, como `Dados:` e `Alertas:` — o rotulo segue a
+    # convencao do projeto, que nao acentua texto exibido. Os nomes dos
+    # veiculos acentuam, e a diferenca e proposital: "Agência Brasil" e nome
+    # proprio, e a licenca pede o credito como o veiculo se chama.
+    return f"Noticias: {' · '.join(veiculos)}"
 
 
 class Cidade(BaseModel):
