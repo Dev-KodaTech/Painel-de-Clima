@@ -31,7 +31,15 @@ export type Estado =
 
 export type ContextoDoPainel = { estado: Estado };
 
-/** O painel corrente, para a pagina que o consome. */
+/**
+ * O painel corrente, para a pagina que o consome.
+ *
+ * O contexto do outlet cresceu — ele carrega a conta tambem, ver
+ * `estadoDaConta.ts` —, e este hook continua devolvendo so o painel. E de
+ * proposito: as cinco paginas que nao sabem que existe conta nao passam a
+ * saber, e o tipo estreito e o que impede uma delas de ler `conta` sem
+ * querer.
+ */
 export function usePainel(): ContextoDoPainel {
   return useOutletContext<ContextoDoPainel>();
 }

@@ -193,10 +193,36 @@ Em produção o servidor precisa devolver `index.html` para qualquer caminho, ou
 recarregar em `/vizinhas` dá 404. O dev server e o `vite preview` já fazem
 isso; deploy continua fora de escopo.
 
-Envelope, sino, avatar e o ícone de saída da barra lateral são **decoração
-inerte**, não botões: não há cadastro, e um botão que aceita o clique sem
-responder promete o que não cumpre. O toggle sol/lua saiu desta lista — com o
-tema escuro implementado, ele é um `<button>` de verdade.
+Envelope e sino são **decoração inerte**, não botões: não há e-mail nem
+notificação, e um botão que aceita o clique sem responder promete o que não
+cumpre. Dois saíram desta lista ao ganharem função — o toggle sol/lua, com o
+tema escuro, e o avatar com o ícone de saída, com a conta: o avatar virou o
+e-mail de quem está entrado, e a saída, um `<button>` que encerra a sessão de
+verdade.
+
+## Conta e sessão no frontend
+
+O estado da conta vive na **rota de layout**, junto do painel, e chega às
+páginas pelo contexto do outlet — a mesma mecânica que o painel já usa. É
+consultado **uma vez** ao abrir o app, em `/api/quem-sou`; navegar entre
+páginas não o refaz, e o que o mantém em dia depois disso são o cadastro, a
+entrada e a saída, que já sabem o que mudou.
+
+Cadastrar **entra direto**: o backend abre a sessão e carimba o cookie na
+própria resposta do cadastro, então não há uma chamada de entrada em seguida.
+
+`credentials: "include"`, nos dois helpers de `api/client.ts`, são os **únicos
+pontos do frontend que sabem que existe sessão**. Nenhum componente lê, escreve
+ou anexa cookie — nem conseguiria: o cookie é `HttpOnly` e não é legível por
+script algum, inclusive o nosso ([ADR 0005](docs/adr/0005-sessao-em-cookie-nao-jwt.md)).
+
+Cadastro e entrada **não são páginas da barra lateral** e ficam fora de
+`PAGINAS`: são telas que se visita uma vez, alcançáveis pelo cabeçalho de
+qualquer página. Os links preservam a cidade da URL, então entrar a partir de
+um painel carregado volta para o mesmo painel.
+
+As outras páginas continuam funcionando **sem conta nenhuma**, como sempre
+funcionaram: a entrada não é pedágio para nada que já existia.
 
 ## Cidade inicial e tema
 

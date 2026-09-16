@@ -1,5 +1,5 @@
 /**
- * A barra lateral: marca, as seis paginas e o icone de saida.
+ * A barra lateral: marca, as seis paginas e a saida.
  *
  * Cada link **preserva os parametros de busca**. Sem isso, trocar de pagina
  * descartaria a cidade escolhida — que e justamente o que mora na URL — e a
@@ -11,11 +11,17 @@
  */
 
 import { Link, NavLink, useLocation } from "react-router";
+import type { EstadoDaConta } from "../estadoDaConta";
 import { IconeSaida } from "../icones";
 import { PAGINAS, ehRaiz } from "../navegacao";
 import { WeatherIcon } from "./WeatherIcon";
 
-export function BarraLateral() {
+type Props = {
+  conta: EstadoDaConta;
+  aoSair: () => void;
+};
+
+export function BarraLateral({ conta, aoSair }: Props) {
   const { search } = useLocation();
 
   return (
@@ -58,14 +64,27 @@ export function BarraLateral() {
       ))}
 
       {/*
-        Nao ha cadastro ainda, entao sair nao significa nada — decoracao
-        inerte, como o cromo do cabecalho. Fica porque segura o lugar: quando o
-        cadastro chegar, troca-se este `div` por um `button`, em vez de
-        redesenhar o rodape da barra.
+        O `div` inerte que segurava este lugar virou o `button` que ele
+        prometia — era exatamente esta a troca prevista quando o cadastro
+        chegasse.
+
+        So existe para quem esta entrado. Um botao de sair visivel para
+        visitante ofereceria desfazer o que nunca foi feito, e clicavel nao
+        faria nada; enquanto a consulta nao volta ele tambem nao aparece, para
+        nao piscar a cada recarga. Quem nao tem conta ve os dois links do
+        cabecalho, que e onde a acao dele existe.
       */}
-      <div aria-hidden="true" className="mt-auto text-ink-3">
-        <IconeSaida />
-      </div>
+      {conta.tipo === "entrada" && (
+        <button
+          type="button"
+          onClick={aoSair}
+          aria-label="Sair"
+          title="Sair"
+          className="mt-auto grid size-10 place-items-center rounded-inner text-ink-3 outline-none transition-colors hover:bg-brand-soft/60 hover:text-brand focus-visible:ring-2 focus-visible:ring-brand/40"
+        >
+          <IconeSaida />
+        </button>
+      )}
     </nav>
   );
 }

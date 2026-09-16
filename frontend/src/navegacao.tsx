@@ -1,5 +1,6 @@
 /**
- * As seis paginas da barra lateral, como dado.
+ * As seis paginas da barra lateral, como dado — e os dois caminhos de conta,
+ * que nao sao paginas da barra.
  *
  * Uma lista so: a barra lateral desenha os icones a partir dela e o `App`
  * declara as rotas a partir dela. Acrescentar uma pagina e acrescentar uma
@@ -12,6 +13,7 @@
  */
 
 import type { ComponentType } from "react";
+import { useLocation } from "react-router";
 import {
   IconeBarras,
   IconeCalendario,
@@ -82,6 +84,47 @@ export const PAGINAS: Pagina[] = [
 /** A raiz e prefixo de todas as outras: sem `end` o icone de grade ficaria
  *  sempre ativo. */
 export const ehRaiz = (caminho: string) => caminho === "/";
+
+/**
+ * Cadastro e entrada, que **nao** entram em `PAGINAS`.
+ *
+ * Ficam de fora da lista porque a lista e a barra lateral: os icones sao
+ * desenhados a partir dela, e dois icones a mais dariam a conta a mesma
+ * permanencia visual das seis paginas do app — que ela nao tem. Sao telas que
+ * se visita uma vez, alcancadas pelo cabecalho.
+ *
+ * Tambem nao tem `oQueVem` nem `Icone`, que sao os campos que so fazem sentido
+ * para uma pagina da barra. Constantes, e nao literais espalhados: quatro
+ * arquivos apontam para estes dois caminhos.
+ */
+export const CAMINHO_CADASTRO = "/cadastro";
+export const CAMINHO_ENTRADA = "/entrada";
+
+/** Se o caminho e uma das telas de conta. */
+export const ehTelaDeConta = (caminho: string) =>
+  caminho === CAMINHO_CADASTRO || caminho === CAMINHO_ENTRADA;
+
+/**
+ * Um destino que **preserva a cidade escolhida**.
+ *
+ * A cidade mora nos parametros da URL (ADR 0002), e um `<Link to="/entrada">`
+ * seco os descartaria: quem entrasse a partir de um painel carregado voltaria
+ * para o app sem cidade nenhuma, e o painel recomecaria do zero. A barra
+ * lateral ja resolve isto nos seus seis links, pelo mesmo motivo; aqui a
+ * mesma regra vira hook porque quem a usa sao quatro lugares diferentes.
+ *
+ * Hook, e nao funcao que le `window.location`: o `search` precisa vir do
+ * roteador para que trocar de cidade re-renderize quem depende dele. Lido do
+ * `window`, o destino de um `<Link>` ja montado continuaria apontando para a
+ * cidade que havia quando ele montou.
+ */
+export function useComCidade(): (pathname: string) => {
+  pathname: string;
+  search: string;
+} {
+  const { search } = useLocation();
+  return (pathname) => ({ pathname, search });
+}
 
 /**
  * Ajustes e a unica pagina que nao e sobre uma cidade, e por isso a unica sem

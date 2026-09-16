@@ -20,20 +20,20 @@ não é pedágio para nada que já existe.
 
 **Blocked by:** 03
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] Existe tela de cadastro e tela de entrada, alcançáveis de qualquer página
-- [ ] Dá para ir de uma para a outra
-- [ ] Cadastrar pela tela entra direto, sem pedir a senha de novo
-- [ ] Quem está entrado vê que está, e com qual conta
-- [ ] Dá para sair, e sair volta ao estado de visitante
-- [ ] O envio em curso é visível, e o botão não dispara duas vezes
-- [ ] Erro de credenciais mostra mensagem clara, sem revelar se o e-mail existe
-- [ ] Erro de rede é distinguível de erro de credenciais
-- [ ] Os requisitos de senha aparecem antes do envio, não só no erro
-- [ ] O estado da conta é consultado uma vez, na rota de layout, e distribuído às páginas
-- [ ] O cliente de API envia credenciais; nenhum componente toca em cookie
-- [ ] As telas seguem os tokens e primitivas existentes, sem biblioteca de formulário nova
-- [ ] As telas respeitam o tema escuro
-- [ ] As telas são navegáveis por teclado
-- [ ] As demais páginas continuam funcionando sem conta
+- [x] Existe tela de cadastro e tela de entrada, alcançáveis de qualquer página
+- [x] Dá para ir de uma para a outra
+- [x] Cadastrar pela tela entra direto, sem pedir a senha de novo
+- [x] Quem está entrado vê que está, e com qual conta
+- [x] Dá para sair, e sair volta ao estado de visitante
+- [x] O envio em curso é visível, e o botão não dispara duas vezes
+- [x] Erro de credenciais mostra mensagem clara, sem revelar se o e-mail existe
+- [x] Erro de rede é distinguível de erro de credenciais
+- [x] Os requisitos de senha aparecem antes do envio, não só no erro
+- [x] O estado da conta é consultado uma vez, na rota de layout, e distribuído às páginas
+- [x] O cliente de API envia credenciais; nenhum componente toca em cookie
+- [x] As telas seguem os tokens e primitivas existentes, sem biblioteca de formulário nova
+- [x] As telas respeitam o tema escuro
+- [x] As telas são navegáveis por teclado
+- [x] As demais páginas continuam funcionando sem conta

@@ -4,6 +4,10 @@
  * O `Shell` e rota de layout: barra lateral, cabecalho, busca e a requisicao
  * do painel ficam la, e as paginas entram pelo `Outlet`.
  *
+ * Cadastro e entrada entram **fora** de `PAGINAS`: nao sao paginas da barra
+ * lateral — ver `navegacao.tsx` — e por isso sao declaradas uma a uma, como a
+ * Visao geral da raiz ja era.
+ *
  * As paginas ainda nao construidas sao declaradas a partir de `PAGINAS`, a
  * mesma lista que desenha a barra lateral. Arquivos quase identicos seriam
  * outros tantos lugares para a navegacao e as rotas discordarem — e cada um
@@ -15,8 +19,15 @@
 import type { ComponentType } from "react";
 import { Route, Routes } from "react-router";
 import { Shell } from "./components/Shell";
-import { PAGINAS, ehRaiz } from "./navegacao";
+import {
+  CAMINHO_CADASTRO,
+  CAMINHO_ENTRADA,
+  PAGINAS,
+  ehRaiz,
+} from "./navegacao";
+import { Cadastro } from "./paginas/Cadastro";
 import { CidadesVizinhas } from "./paginas/CidadesVizinhas";
+import { Entrada } from "./paginas/Entrada";
 import { NaoEncontrada } from "./paginas/NaoEncontrada";
 import { PaginaVazia } from "./paginas/PaginaVazia";
 import { Tendencia } from "./paginas/Tendencia";
@@ -33,6 +44,9 @@ export default function App() {
     <Routes>
       <Route element={<Shell />}>
         <Route index element={<VisaoGeral />} />
+
+        <Route path={CAMINHO_CADASTRO} element={<Cadastro />} />
+        <Route path={CAMINHO_ENTRADA} element={<Entrada />} />
 
         {PAGINAS.filter((pagina) => !ehRaiz(pagina.caminho)).map((pagina) => {
           const Construida = CONSTRUIDAS[pagina.caminho];

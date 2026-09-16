@@ -267,3 +267,25 @@ export type TrendsResponse = {
   units: UnitsDoHistorico;
   attribution: string;
 };
+
+/**
+ * A conta como a API a devolve: o e-mail, e nada mais.
+ *
+ * Espelha `ContaSaida` do backend. Nao ha `id` — os locais salvos vem da
+ * sessao, nunca de um identificador que o cliente informe — e nao ha senha
+ * nem hash em resposta alguma.
+ */
+export type Conta = {
+  email: string;
+};
+
+/**
+ * Quem esta pedindo, ou `null`.
+ *
+ * O envelope com um campo espelha `QuemSouResponse`: "nao ha sessao" e um
+ * **valor** que se le, e nao um status que o cliente precise tratar como
+ * falha. Visitante sem conta e o estado normal de quem nunca entrou.
+ */
+export type QuemSouResponse = {
+  conta: Conta | null;
+};

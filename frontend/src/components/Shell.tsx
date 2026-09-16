@@ -12,13 +12,14 @@
 
 import { startTransition, useEffect, useRef, useState } from "react";
 import { Outlet, useLocation, useSearchParams } from "react-router";
-import { buscarPainel, mensagemDeErro } from "../api/client";
-import type { Cidade, WeatherResponse } from "../api/types";
+import { buscarPainel, mensagemDeErro, quemSou, sair } from "../api/client";
+import type { Cidade, Conta, WeatherResponse } from "../api/types";
 import { cidadeDosParametros, trocarCidade } from "../cidadeNaUrl";
 import { descobrirCidadeInicial } from "../cidadeInicial";
-import type { ContextoDoPainel, Estado } from "../estadoDoPainel";
+import type { ContextoDoOutlet, EstadoDaConta } from "../estadoDaConta";
+import type { Estado } from "../estadoDoPainel";
 import { dataPorExtenso } from "../formato";
-import { CAMINHO_SEM_BUSCA } from "../navegacao";
+import { CAMINHO_SEM_BUSCA, ehTelaDeConta } from "../navegacao";
 import { lembrar } from "../ultimaCidade";
 import { BarraLateral } from "./BarraLateral";
 import { Cabecalho } from "./Cabecalho";
@@ -53,6 +54,59 @@ export function Shell() {
   const [parametros, setParametros] = useSearchParams();
   const { pathname } = useLocation();
   const [resultado, setResultado] = useState<Resultado | null>(null);
+
+  /**
+   * O estado da conta, consultado **uma vez** ao abrir o app.
+   *
+   * Mora aqui, na rota de layout, junto do painel, e chega as paginas pelo
+   * contexto do outlet — a mesma mecanica que o painel ja usa. Uma consulta
+   * so: navegar entre paginas nao a refaz, porque o `Shell` nao desmonta, e o
+   * que a mantem em dia depois disso sao `aoEntrar` e `aoSair`, chamados por
+   * quem provocou a mudanca.
+   */
+  const [conta, setConta] = useState<EstadoDaConta>({ tipo: "consultando" });
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    quemSou(controller.signal)
+      .then((encontrada) => {
+        setConta(
+          encontrada === null
+            ? { tipo: "visitante" }
+            : { tipo: "entrada", conta: encontrada },
+        );
+      })
+      .catch(() => {
+        if (controller.signal.aborted) return;
+        // Falhar a consulta e ser visitante: e o estado em que as outras seis
+        // paginas funcionam inteiras. Ver `EstadoDaConta`, que por isso nao
+        // tem caso de erro.
+        setConta({ tipo: "visitante" });
+      });
+
+    return () => controller.abort();
+  }, []);
+
+  /** Guarda a conta que o cadastro ou a entrada acabou de abrir. */
+  function aoEntrar(aberta: Conta) {
+    setConta({ tipo: "entrada", conta: aberta });
+  }
+
+  /**
+   * Sai: apaga a sessao no servidor e volta ao estado de visitante.
+   *
+   * O estado local vira `visitante` **sem esperar** a resposta, e a falha da
+   * requisicao nao o desfaz. Quem clicou em sair quer estar fora, e o pior
+   * resultado possivel e a tela continuar dizendo que ha uma sessao. A linha
+   * no banco e o que importa de verdade, e `/api/saida` responde `200` ate
+   * quando nao ha o que apagar — a chamada que falha por rede deixa uma sessao
+   * viva no servidor, que expira sozinha.
+   */
+  function aoSair() {
+    setConta({ tipo: "visitante" });
+    void sair().catch(() => {});
+  }
 
   const cidade = cidadeDosParametros(parametros);
 
@@ -194,14 +248,20 @@ export function Shell() {
   return (
     <div className="min-h-screen">
       <div className="mx-auto grid max-w-[1180px] grid-cols-[64px_1fr] gap-4 px-6 py-8">
-        <BarraLateral />
+        <BarraLateral conta={conta} aoSair={aoSair} />
 
         {/* `min-w-0`: sem isso a coluna de conteudo cresce ate caber o seu
             maior filho — o grafico da tendencia — e estoura o container. */}
         <div className="flex min-w-0 flex-col gap-4">
           <Cabecalho
+            conta={conta}
             data={data}
-            mostrarBusca={pathname !== CAMINHO_SEM_BUSCA}
+            // As telas de conta se juntam a Ajustes na lista das que nao sao
+            // sobre uma cidade: buscar uma cidade de dentro do formulario de
+            // cadastro trocaria a URL sob um formulario ja preenchido.
+            mostrarBusca={
+              pathname !== CAMINHO_SEM_BUSCA && !ehTelaDeConta(pathname)
+            }
             nomeDaCidade={
               estado.tipo === "pronto" ? estado.painel.location.name : null
             }
@@ -209,7 +269,11 @@ export function Shell() {
           />
 
           <main className="min-w-0">
-            <Outlet context={{ estado } satisfies ContextoDoPainel} />
+            <Outlet
+              context={
+                { estado, conta, aoEntrar } satisfies ContextoDoOutlet
+              }
+            />
           </main>
 
           {estado.tipo === "pronto" && (

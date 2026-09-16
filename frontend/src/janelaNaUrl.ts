@@ -8,6 +8,11 @@
  *
  * Nao vai para o `localStorage`: a URL ja atende compartilhar e recarregar, e o
  * armazenamento continua restrito a ultima cidade e ao tema.
+ *
+ * A restricao **segue valendo** depois dos locais salvos, e nao foi
+ * abandonada por eles: um local salvo pertence a uma conta e vive no banco,
+ * que e o que o faz acompanhar a pessoa entre navegadores — justamente o que
+ * o `localStorage` nao faria. Ver ADR 0004.
  */
 
 import type { Janela } from "./api/types";
