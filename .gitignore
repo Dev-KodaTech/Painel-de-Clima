@@ -15,3 +15,8 @@ dist/
 
 # OS
 .DS_Store
+
+# Documentacao de trabalho: specs, issues e registros de decisao.
+# Ficam na maquina, fora do repositorio.
+.scratch/
+docs/

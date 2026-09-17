@@ -1,5 +1,10 @@
 # Mattpocock-app
 
+> `.scratch/` e `docs/` **não estão no repositório** — são ignoradas pelo git e
+> vivem só na máquina de quem desenvolve. Os caminhos abaixo continuam valendo
+> localmente; num clone novo essas pastas não existem, e quem precisar delas tem
+> de recebê-las por fora.
+
 ## Agent skills
 
 ### Issue tracker

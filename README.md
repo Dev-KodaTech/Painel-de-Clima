@@ -9,8 +9,11 @@ através do backend próprio: o frontend nunca fala com API externa.
 Quem tem conta ganha **planos**: o que pretende fazer num dia, cruzado na
 leitura com a aptidão daquele dia para aquela atividade.
 
-Spec: [`.scratch/weather-dashboard/spec.md`](.scratch/weather-dashboard/spec.md)
-· Glossário: [`CONTEXT.md`](CONTEXT.md) · Decisões: [`docs/adr/`](docs/adr/)
+Glossário do domínio: [`CONTEXT.md`](CONTEXT.md).
+
+As specs e os registros de decisão (ADRs) ficam fora do repositório, na máquina
+de quem desenvolve. O README cita os ADRs pelo número quando a decisão explica
+algo que se vê no código.
 
 ## Requisitos
 
@@ -159,7 +162,7 @@ curl -b cookies.txt localhost:8000/api/quem-sou   # {"conta":null}
 A sessão é um cookie `HttpOnly`, `SameSite=Lax`, `Secure` fora de
 desenvolvimento, com linha na tabela — nunca um token no armazenamento do
 navegador, que seria legível por qualquer script da página e não teria como ser
-revogado antes de expirar. Ver [ADR 0005](docs/adr/0005-sessao-em-cookie-nao-jwt.md).
+revogado antes de expirar. Ver o ADR 0005.
 
 Cinco detalhes que surpreendem:
 
@@ -225,7 +228,7 @@ Seis detalhes que surpreendem:
   não envia o que a interface não deve exibir. A partir do dia 8 a fonte troca
   de modelo e a confiança cai, então não há céu a afirmar nem aptidão a julgar —
   só a probabilidade de chuva
-  ([ADR 0010](docs/adr/0010-dezesseis-dias-e-a-fronteira-do-dia-oito.md)). Cada
+  (ADR 0010). Cada
   dia **declara** de que lado está, em vez de deixar a fronteira como regra de
   índice que os dois lados precisariam manter iguais.
 - Ainda em `/api/horizonte`, a **borda vem incompleta**: medido contra o serviço
@@ -255,7 +258,7 @@ Duas páginas fogem do padrão "a mesma URL mostra o mesmo para todo mundo":
 
 - **Notícias** é a única que não é sobre a cidade escolhida — as matérias são
   nacionais e continuam as mesmas em Sorocaba e em Belém
-  ([ADR 0009](docs/adr/0009-noticias-por-rss-nao-por-api.md)). Por isso o
+  (ADR 0009). Por isso o
   cabeçalho esconde a busca ali, como em Ajustes.
 - **Calendário** é **mista**, e é a única assim: a previsão e a aptidão são
   função da cidade e viajam na URL; só a faixa de planos é função da conta. Sem
@@ -263,7 +266,7 @@ Duas páginas fogem do padrão "a mesma URL mostra o mesmo para todo mundo":
   convite — a página não exige conta para nada além dos planos.
 
 **A cidade escolhida mora na URL**, não em estado de componente — ver
-[ADR 0002](docs/adr/0002-cidade-na-url.md). São seis parâmetros
+o ADR 0002. São seis parâmetros
 (`lat`, `lon`, `name`, `cc`, `country`, `admin1`) porque `/api/weather` exige
 `country_code` e usa os outros para montar o `location`. Consequências:
 `/vizinhas?lat=52.52&lon=13.41&name=Berlin&cc=DE&country=Germany&admin1=Land+Berlin`
@@ -295,7 +298,7 @@ própria resposta do cadastro, então não há uma chamada de entrada em seguida
 `credentials: "include"`, nos dois helpers de `api/client.ts`, são os **únicos
 pontos do frontend que sabem que existe sessão**. Nenhum componente lê, escreve
 ou anexa cookie — nem conseguiria: o cookie é `HttpOnly` e não é legível por
-script algum, inclusive o nosso ([ADR 0005](docs/adr/0005-sessao-em-cookie-nao-jwt.md)).
+script algum, inclusive o nosso (ADR 0005).
 
 Cadastro e entrada **não são páginas da barra lateral** e ficam fora de
 `PAGINAS`: são telas que se visita uma vez, alcançáveis pelo cabeçalho de
