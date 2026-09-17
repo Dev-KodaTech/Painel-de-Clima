@@ -33,7 +33,7 @@
  * primeiro dia, e nunca depois do decimo sexto.
  */
 
-import type { DiaDoHorizonte } from "../../api/types";
+import type { Atividade, DiaDoHorizonte } from "../../api/types";
 import {
   DIAS_CURTOS,
   colunasVaziasAntesDe,
@@ -46,9 +46,13 @@ import { CelulaDoDia, type UnidadesDaGrade } from "./CelulaDoDia";
 type Props = {
   dias: DiaDoHorizonte[];
   units: UnidadesDaGrade;
+  /** A atividade que pinta a grade, ou `null` no estado sem escolha. */
+  atividade: Atividade | null;
+  /** Abre o detalhe de um dia. */
+  onAbrirDia: (dia: DiaDoHorizonte) => void;
 };
 
-export function Grade({ dias, units }: Props) {
+export function Grade({ dias, units, atividade, onAbrirDia }: Props) {
   if (dias.length === 0) return null;
 
   const primeiro = dias[0];
@@ -102,11 +106,18 @@ export function Grade({ dias, units }: Props) {
             // A marca da fronteira vai na primeira celula do horizonte longo,
             // que e onde a troca de modelo acontece.
             abreOHorizonteLongo={indice === inicioDoLongo}
+            atividade={atividade}
+            onAbrir={onAbrirDia}
           />
         ))}
       </ol>
 
-      {inicioDoLongo !== -1 && <Fronteira data={dias[inicioDoLongo].date} />}
+      {inicioDoLongo !== -1 && (
+        <Fronteira
+          data={dias[inicioDoLongo].date}
+          temAtividade={atividade !== null}
+        />
+      )}
     </div>
   );
 }
@@ -137,7 +148,13 @@ export function Grade({ dias, units }: Props) {
  * (moldura tracejada, sem ceu, com a chance de chuva no lugar); esta nota
  * explica o que a grade ja mostra, em vez de ser a unica coisa que o mostra.
  */
-function Fronteira({ data }: { data: string }) {
+function Fronteira({
+  data,
+  temAtividade,
+}: {
+  data: string;
+  temAtividade: boolean;
+}) {
   return (
     <aside className="flex gap-2.5 rounded-inner border border-dashed border-line p-3">
       {/* O mesmo tracejado das celulas distantes, aqui como amostra: liga a
@@ -167,7 +184,28 @@ function Fronteira({ data }: { data: string }) {
           abre mao, e isso continua verdade mesmo na celula sem numero.
         */}
         <strong className="font-semibold">Nao e falha de carregamento</strong> —
-        e o que a previsao a essa distancia sustenta.
+        e o que a previsao a essa distancia sustenta.{" "}
+        {/*
+          A aptidao some junto, e a frase diz isso **aqui** em vez de num aviso
+          proprio.
+
+          E a story 14, e a issue 06 previa que esta mesma explicacao pudesse
+          absorvi-la: sao a mesma causa — a previsao distante nao sustenta o que
+          a proxima sustenta — e duas notas separadas diriam a mesma coisa duas
+          vezes, uma sobre o ceu e outra sobre o julgamento.
+
+          A frase so aparece com uma atividade escolhida. Sem escolha nao ha
+          pintura em lugar nenhum da grade, e anunciar que a metade distante nao
+          tem aptidao seria explicar a ausencia de algo que a pessoa ainda nao
+          pediu.
+        */}
+        {temAtividade && (
+          <>
+            Por isso estes dias tambem <strong className="font-semibold">nao
+            recebem aptidao</strong>: julgar se o dia serve para a atividade
+            escolhida exigiria a precisao que ele nao tem.
+          </>
+        )}
       </p>
     </aside>
   );

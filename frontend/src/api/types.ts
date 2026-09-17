@@ -210,6 +210,81 @@ export type CondicoesResponse = {
 };
 
 /**
+ * As quatro atividades que a aptidao sabe julgar, espelhando `Atividade` do
+ * backend.
+ *
+ * **Fechadas, e nao uma lista que a pessoa edita.** Cada uma e uma regra
+ * escrita sobre variaveis nomeadas da previsao (`services/aptidao.py`), e uma
+ * atividade sem regra propria seria um rotulo que nao julga nada — o verbete
+ * *Atividade* do `CONTEXT.md` e explicito.
+ *
+ * Uniao fechada e nao `string` porque e ela que a URL valida: um valor
+ * inventado no parametro precisa cair no estado sem atividade, e nao virar uma
+ * chave que nao encontra aptidao nenhuma.
+ */
+export type Atividade = "lavar_roupa" | "esporte" | "viagem" | "plantio";
+
+/**
+ * Os tres niveis de aptidao.
+ *
+ * **Tres, e nao um numero de 0 a 100**: um score sugeriria uma precisao que a
+ * regra nao tem — ela e um punhado de limiares sobre cinco variaveis — e
+ * obrigaria a interface a inventar faixas para voltar a nomea-lo (verbete
+ * *Aptidao*).
+ */
+export type NivelDeAptidao = "boa" | "media" | "ruim";
+
+/**
+ * Qual variavel reprovou um dia para uma atividade.
+ *
+ * Fechada como no backend: a interface pode agrupar ou iconizar por este valor
+ * sem interpretar texto, e um nome novo vindo de la quebra a compilacao aqui
+ * em vez de cair num `else` silencioso.
+ */
+export type VariavelDaAptidao =
+  | "chuva"
+  | "umidade"
+  | "vento"
+  | "calor"
+  | "frio"
+  | "tempestade"
+  | "neve";
+
+/**
+ * Por que um dia foi reprovado para uma atividade.
+ *
+ * **O motivo vem pronto do backend**, e nao e reconstruido aqui a partir dos
+ * numeros do dia: quem aplicou o limiar sabe qual variavel pesou, e refazer
+ * essa conta no frontend seria manter a mesma regra em dois lugares — a mesma
+ * razao de `CondicaoPrevista` trazer `detail` pronto.
+ */
+export type MotivoDaAptidao = {
+  variavel: VariavelDaAptidao;
+  /** A frase pronta para exibir, com o valor que reprovou. */
+  texto: string;
+};
+
+/**
+ * O quanto um dia serve para **uma** atividade.
+ *
+ * Distinto de `CondicaoPrevista`, e a distincao e de natureza e nao de grau:
+ * aquela diz que o tempo e perigoso, esta diz que o tempo serve ou nao serve
+ * para uma intencao sua (ADR 0011).
+ */
+export type JulgamentoDeAptidao = {
+  atividade: Atividade;
+  /**
+   * O nome da atividade para exibir. **Vem do backend**, para que o frontend
+   * nao mantenha um segundo mapa de `Atividade` para texto que precisaria
+   * concordar com o de la.
+   */
+  rotulo: string;
+  nivel: NivelDeAptidao;
+  /** Presente **so** no nivel `ruim`: um dia bom nao tem motivo a dar. */
+  motivo: MotivoDaAptidao | null;
+};
+
+/**
  * Os dois lados da fronteira do dia 8, espelhando o `Horizonte` do backend.
  *
  * **Um par, e nao um nome so.** "Previsao estendida" prometeria extensao sem
@@ -265,6 +340,19 @@ export type DiaDoHorizonte = {
   weather_code: number | null;
   description: string | null;
   icon: string | null;
+  /**
+   * A aptidao do dia para cada uma das quatro atividades.
+   *
+   * **Lista vazia no horizonte longo** — ausencia, e nao um nivel
+   * `desconhecido` que a interface teria de filtrar. A skill de precipitacao
+   * colapsa antes da de temperatura, e a decisao que a aptidao informa e de 1 a
+   * 5 dias: julgar o dia 14 seria dar conselho sobre dado que nao sustenta
+   * conselho (ADR 0010).
+   *
+   * Sempre as quatro no horizonte curto, e sempre na mesma ordem: a grade pinta
+   * a escolhida e o detalhe do dia mostra todas.
+   */
+  aptidoes: JulgamentoDeAptidao[];
 };
 
 /**

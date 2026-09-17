@@ -12,6 +12,7 @@
 import type { Janela, Periodo } from "../../api/types";
 import { intervalo } from "../../formato";
 import { JANELAS } from "../../janelaNaUrl";
+import { GrupoDeRadio } from "../GrupoDeRadio";
 
 type Props = {
   janela: Janela;
@@ -30,31 +31,12 @@ export function FiltroDeJanela({
   return (
     <div className="flex flex-wrap items-center gap-3">
       {/* `radiogroup`: as tres sao uma escolha unica, nao tres acoes soltas. */}
-      <div
-        role="radiogroup"
-        aria-label="Janela temporal"
-        className="flex gap-1 rounded-inner bg-card p-1 shadow-card"
-      >
-        {JANELAS.map(({ valor, rotulo }) => {
-          const ativa = valor === janela;
-          return (
-            <button
-              key={valor}
-              type="button"
-              role="radio"
-              aria-checked={ativa}
-              onClick={() => onEscolher(valor)}
-              className={`rounded-lg px-3 py-1.5 text-[12px] font-medium transition-colors ${
-                ativa
-                  ? "bg-brand text-white"
-                  : "text-ink-2 hover:bg-brand-soft hover:text-brand-text"
-              }`}
-            >
-              {rotulo}
-            </button>
-          );
-        })}
-      </div>
+      <GrupoDeRadio<Janela>
+        rotulo="Janela temporal"
+        opcoes={JANELAS}
+        escolhida={janela}
+        onEscolher={onEscolher}
+      />
 
       {/* O intervalo **permanece** enquanto a janela nova carrega, em vez de
           ser substituido pelo aviso. Trocar a janela a cada clique fazia a

@@ -21,7 +21,12 @@
  * ouve.
  */
 
-import type { DiaDoHorizonte, Units } from "../../api/types";
+import type {
+  Atividade,
+  DiaDoHorizonte,
+  JulgamentoDeAptidao,
+  Units,
+} from "../../api/types";
 import {
   dataPorExtenso,
   diaDoMes,
@@ -29,6 +34,13 @@ import {
   temperatura,
 } from "../../formato";
 import { WeatherIcon } from "../WeatherIcon";
+import {
+  ANUNCIO,
+  CLASSES,
+  COR_DO_NIVEL,
+  PALAVRA,
+  julgamentoDe,
+} from "./aptidao";
 
 /**
  * So a unidade que a celula escreve.
@@ -57,6 +69,17 @@ type Props = {
    * maioria das semanas, onde uma faixa horizontal nao teria como passar.
    */
   abreOHorizonteLongo?: boolean;
+  /**
+   * A atividade que governa a pintura, ou `null` no estado sem escolha.
+   *
+   * A celula **nao** recebe o julgamento ja escolhido: ela recebe a atividade e
+   * procura entre os seus. A alternativa faria a `Grade` percorrer as aptidoes
+   * de cada dia antes de renderizar, e o dia sem aptidao (horizonte longo) e o
+   * dia com ela passariam pelo mesmo `find` num lugar que nao e o dono do dado.
+   */
+  atividade: Atividade | null;
+  /** Abre o detalhe deste dia. */
+  onAbrir: (dia: DiaDoHorizonte) => void;
 };
 
 /**
@@ -81,6 +104,40 @@ type Props = {
  * vezes, a primeira divergencia produziria uma celula que mostra "sem dado" e
  * anuncia uma maxima, ou o contrario.
  */
+/**
+ * A superficie da celula: cor de fundo **e** de traco, numa decisao so.
+ *
+ * ## Por que as duas saem juntas
+ *
+ * Elas conflitam. `border-line` e `bg-card` sao emitidas **depois** das
+ * utilitarias de aptidao no CSS gerado — medido no `dist`: posicao 12243 contra
+ * 11819 —, entao uma celula que pedisse as duas familias ao mesmo tempo
+ * perderia a pintura por ordem de regra, e nao por especificidade. O sintoma
+ * seria a grade **sem cor nenhuma**, com os tipos certos, o lint limpo e as
+ * classes presentes no CSS. Uma expressao so nao tem como produzir o par em
+ * conflito.
+ *
+ * ## A ordem dos casos, e o que cada um protege
+ *
+ * 1. **Hoje vence a aptidao.** O dia corrente e o unico ponto fixo da grade, e
+ *    trocar o azul por verde o faria desaparecer exatamente quando a grade fica
+ *    mais cheia de cor. A celula de hoje diz a sua aptidao pela palavra — o
+ *    canal que nunca depende de cor de qualquer modo.
+ * 2. **A aptidao vence o fundo de cartao.** E o que a pessoa veio ver quando
+ *    escolheu uma atividade.
+ * 3. **O horizonte longo nao recebe fundo**, e isso e parte da distincao entre
+ *    os dois lados da fronteira — ele ja tem a moldura tracejada.
+ */
+function superficieDaCelula(
+  julgamento: JulgamentoDeAptidao | null,
+  hoje: boolean,
+  longo: boolean,
+): string {
+  if (hoje) return "border-line bg-brand text-white";
+  if (julgamento) return CLASSES[julgamento.nivel];
+  return longo ? "" : "border-line bg-card";
+}
+
 function semNumero(dia: DiaDoHorizonte): boolean {
   return dia.high === null && dia.low === null;
 }
@@ -89,6 +146,7 @@ function anuncio(
   dia: DiaDoHorizonte,
   units: UnidadesDaGrade,
   hoje: boolean,
+  julgamento: JulgamentoDeAptidao | null,
 ): string {
   const partes = [hoje ? `Hoje, ${dataPorExtenso(dia.date)}` : dataPorExtenso(dia.date)];
 
@@ -119,6 +177,19 @@ function anuncio(
     partes.push("previsao menos precisa, de modelo de menor resolucao");
   }
 
+  // A aptidao entra **por ultimo e por extenso**: "dia bom para lavar roupa", e
+  // nao o adjetivo solto que a celula imprime. Depois de uma data e dois
+  // numeros, "boa" sozinho nao diz boa para que.
+  //
+  // O motivo da reprovacao **nao** entra aqui, e e a mesma razao pela qual ele
+  // nao aparece na celula: sete motivos anunciados em sequencia sao um
+  // relatorio. Quem quiser o motivo abre o dia, e o anuncio diz que da.
+  if (julgamento) {
+    partes.push(
+      `${ANUNCIO[julgamento.nivel]} ${julgamento.rotulo.toLowerCase()}`,
+    );
+  }
+
   return partes.join(", ");
 }
 
@@ -128,8 +199,11 @@ export function CelulaDoDia({
   hoje,
   colunaInicial,
   abreOHorizonteLongo = false,
+  atividade,
+  onAbrir,
 }: Props) {
   const longo = dia.horizonte === "longo";
+  const julgamento = julgamentoDe(dia, atividade);
 
   return (
     <li
@@ -137,8 +211,25 @@ export function CelulaDoDia({
       // grid ja poe cada dia na coluna seguinte sozinho. Empurrar todas seria
       // recalcular em dezesseis lugares o que a primeira ja resolveu.
       style={colunaInicial ? { gridColumnStart: colunaInicial } : undefined}
-      className={[
-        "flex min-h-[104px] flex-col gap-0.5 rounded-inner p-2",
+      className="contents"
+    >
+      {/*
+        O dia e um **botao**, e a moldura toda mudou de elemento por causa
+        disso: clicar num dia abre o detalhe dele, e um `onClick` no `<li>`
+        daria o clique sem dar o foco, o `Enter`, o `Espaco` nem o papel — a
+        story 34 pede a grade navegavel sem mouse.
+
+        `contents` no `<li>`: ele continua sendo o item da lista para a
+        semantica, e deixa de ser uma caixa no grid para o layout, de modo que
+        o botao ocupa a celula diretamente. Sem isso o botao seria um filho
+        dentro de um item de grade e a altura minima teria de ser mantida em
+        dois lugares.
+      */}
+      <button
+        type="button"
+        onClick={() => onAbrir(dia)}
+        className={[
+          "flex min-h-[104px] flex-col gap-0.5 rounded-inner p-2 text-left outline-none transition-shadow focus-visible:ring-2 focus-visible:ring-brand/50",
         // A moldura do horizonte longo e tracejada e **sem fundo proprio**: o
         // dia distante fica um degrau atras do cartao em vez de sobre ele.
         //
@@ -147,7 +238,7 @@ export function CelulaDoDia({
         // daltonismo e ao tema escuro, que e o que a issue pede. Com so o
         // tracejado sobre `bg-card`, a pagina rodando mostrou as duas metades
         // quase identicas de longe.
-        longo ? "border border-dashed border-ink-3/50" : "border border-line",
+        longo ? "border border-dashed border-ink-3/50" : "border",
         // A marca da fronteira, na propria celula em que ela cai: uma borda
         // esquerda solida e mais grossa. E o "entre o dia 7 e o dia 8" que a
         // issue pede, posto onde a troca acontece — uma faixa horizontal nao
@@ -164,13 +255,9 @@ export function CelulaDoDia({
         abreOHorizonteLongo
           ? "border-l-2 border-l-ink-2 [border-left-style:solid]"
           : "",
-        // Hoje ganha o azul; os demais dias do horizonte curto, o fundo de
-        // cartao. O dia distante nao recebe fundo nenhum — e parte da
-        // distincao. `hoje` vem primeiro porque o primeiro dia da grade e
-        // sempre curto, e as duas regras se sobreporiam nele.
-        hoje ? "bg-brand text-white" : longo ? "" : "bg-card",
-      ].join(" ")}
-    >
+        superficieDaCelula(julgamento, hoje, longo),
+        ].join(" ")}
+      >
       {/*
         O anuncio como texto `sr-only`, e **nao** um `aria-label` no `<li>`.
 
@@ -188,7 +275,7 @@ export function CelulaDoDia({
         usam neste repo, pelo mesmo motivo: a leitura auditiva do conteudo e
         outra da visual, e nao uma etiqueta colada por cima.
       */}
-      <span className="sr-only">{anuncio(dia, units, hoje)}</span>
+      <span className="sr-only">{anuncio(dia, units, hoje, julgamento)}</span>
 
       <div className="flex items-baseline justify-between">
         <span
@@ -225,7 +312,19 @@ export function CelulaDoDia({
           </p>
         )}
         {dia.low !== null && (
-          <p className={`text-[11px] ${hoje ? "text-white/80" : "text-ink-2"}`}>
+          <p
+            className={`text-[11px] ${
+              hoje
+                ? "text-white/80"
+                : // Na celula pintada a minima usa a cor do nivel, e nao o
+                  // cinza: `ink-2` cai para 4,40 / 4,34 / 3,96 sobre os tres
+                  // preenchimentos claros, abaixo do minimo de 4,5:1. Ver
+                  // `COR_DO_NIVEL`.
+                  julgamento
+                  ? COR_DO_NIVEL[julgamento.nivel]
+                  : "text-ink-2"
+            }`}
+          >
             {temperatura(dia.low, units.temperature)}
           </p>
         )}
@@ -239,8 +338,53 @@ export function CelulaDoDia({
           </p>
         )}
 
-        {semNumero(dia) && <p className="text-[11px] text-ink-3">sem dado</p>}
+        {/* `ink-3` e o pior caso da pintura — 2,31 / 2,28 / 2,08 sobre os tres
+            preenchimentos claros —, entao a celula pintada troca o cinza pela
+            cor do nivel aqui tambem. Na pratica o par quase nao acontece (o
+            "sem dado" cai na ponta da grade, que e horizonte longo e nao
+            pinta), mas "quase nao acontece" nao e uma razao para deixar um
+            texto ilegivel esperando o dia em que aconteca. */}
+        {semNumero(dia) && (
+          <p
+            className={`text-[11px] ${
+              julgamento && !hoje
+                ? COR_DO_NIVEL[julgamento.nivel]
+                : "text-ink-3"
+            }`}
+          >
+            sem dado
+          </p>
+        )}
+
+        {/*
+          A aptidao **como palavra**, e nao so como cor de fundo.
+
+          E a story 11, e ela nao se cumpre com um verde mais escuro: quem nao
+          distingue verde de vermelho nao distingue tom nenhum deles. A cor
+          serve a varredura — achar o dia bom numa olhada, story 10 —, e a
+          palavra serve a leitura. As duas stories pedem coisas diferentes, e
+          nenhum dos dois canais sozinho atende as duas.
+
+          Na celula de hoje a palavra vem em branco, porque o azul de hoje
+          venceu a pintura e a cor do nivel nao tem contraste sobre ele. E o
+          caso em que o texto deixa de ser reforco e passa a ser o unico canal —
+          que e exatamente por que ele existe.
+        */}
+        {julgamento && (
+          <p
+            // `aria-hidden` como o resto do corpo da celula: o anuncio ja diz
+            // "dia bom para esporte ao ar livre" por extenso, e sem isto o
+            // leitor de tela ouviria a frase inteira e depois "boa" solto. A
+            // palavra aqui e o canal **visual** que nao depende de cor; o canal
+            // auditivo e o `sr-only` la em cima.
+            aria-hidden="true"
+            className={`mt-1 text-[11px] font-semibold ${hoje ? "text-white" : ""}`}
+          >
+            {PALAVRA[julgamento.nivel]}
+          </p>
+        )}
       </div>
+      </button>
     </li>
   );
 }

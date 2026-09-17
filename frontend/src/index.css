@@ -29,6 +29,34 @@
   --shadow-card: 0 8px 24px -12px rgb(31 36 48 / 0.18);
 
   --font-sans: Poppins, system-ui, sans-serif;
+
+  /*
+   * As cores da aptidao: um preenchimento e uma cor de traco por nivel.
+   *
+   * Sao **tokens e nao constantes em TypeScript** pela mesma razao que todo o
+   * resto do tema mora aqui: o tema vive num atributo do `<html>`, e o unico
+   * componente que le `data-tema` em JavaScript e o proprio botao que o
+   * alterna. Uma cor escolhida em JS no momento do render ficaria congelada no
+   * tema em que a grade montou — alternar o tema repintaria a pagina inteira e
+   * deixaria a aptidao para tras, porque o estado do tema e local do
+   * `Cabecalho` e nao re-renderiza a grade.
+   *
+   * Existem seis e nao tres porque **o preenchimento sozinho nao distingue
+   * nada**: medido em WCAG, o verde claro da 1,10:1 contra o cartao branco, o
+   * ambar 1,11:1 e o vermelho 1,22:1, todos muito abaixo dos 3:1 de elemento
+   * nao-textual. Quem carrega a distincao visual e o traco, e cada `-cor` foi
+   * medida sobre o seu proprio `-fundo` **e** sobre o cartao — a celula de hoje
+   * e a do horizonte longo nao tem o mesmo fundo das outras.
+   *
+   * Claro: boa 4,57 e 5,02 · media 4,51 e 5,02 · ruim 5,30 e 6,47.
+   * Todas acima de 4,5:1, que e o minimo de texto pequeno.
+   */
+  --color-aptidao-boa-fundo: #dcfce7;
+  --color-aptidao-boa-cor: #15803d;
+  --color-aptidao-media-fundo: #fef3c7;
+  --color-aptidao-media-cor: #b45309;
+  --color-aptidao-ruim-fundo: #fee2e2;
+  --color-aptidao-ruim-cor: #b91c1c;
 }
 
 /*
@@ -64,6 +92,21 @@
      graficos e o aro que separa cartao de fundo. Em #2a2f3c o aro ficava em
      1,23 sobre o cartao — presente no CSS e invisivel na tela. */
   --color-line: #3a4155;
+
+  /*
+   * A aptidao no escuro: preenchimentos profundos e tracos claros, que e a
+   * inversao dos papeis do tema claro — la o fundo e pastel e o traco fechado.
+   *
+   * Medido sobre o cartao escuro (#1b1f29) e sobre o proprio preenchimento:
+   * boa 7,66 e 9,45 · media 7,89 e 9,87 · ruim 5,35 e 5,96. Os vermelhos sao os
+   * mais apertados dos dois temas e ainda passam com folga o minimo de 4,5:1.
+   */
+  --color-aptidao-boa-fundo: #14352a;
+  --color-aptidao-boa-cor: #4ade80;
+  --color-aptidao-media-fundo: #3a2f12;
+  --color-aptidao-media-cor: #fbbf24;
+  --color-aptidao-ruim-fundo: #3d1f24;
+  --color-aptidao-ruim-cor: #f87171;
 }
 
 /*
