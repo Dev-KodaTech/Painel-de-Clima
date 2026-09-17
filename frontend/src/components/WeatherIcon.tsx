@@ -24,9 +24,29 @@ type Props = {
   /** Texto vindo de `current.description`: o icone nao inventa o seu proprio. */
   description: string;
   className?: string;
+  /**
+   * O icone e **redundante** onde esta, e o leitor de tela deve pula-lo.
+   *
+   * Existe por causa da celula da grade do Calendario, que ja anuncia a
+   * descricao no `aria-label` do dia inteiro — com o `alt` preenchido, quem
+   * ouve a celula ouviria "chuva" duas vezes na mesma frase.
+   *
+   * `alt=""` e nao `aria-hidden`: e o que marca uma imagem como decorativa sem
+   * tira-la da arvore de acessibilidade por outro caminho. E e um parametro, e
+   * nao a omissao de `description`, porque o icone continua precisando saber o
+   * que desenha — o que muda e so quem o anuncia.
+   */
+  decorativo?: boolean;
 };
 
-export function WeatherIcon({ icon, description, className }: Props) {
+export function WeatherIcon({
+  icon,
+  description,
+  className,
+  decorativo = false,
+}: Props) {
   const url = POR_NOME[icon] ?? POR_NOME["not-available"];
-  return <img src={url} alt={description} className={className} />;
+  return (
+    <img src={url} alt={decorativo ? "" : description} className={className} />
+  );
 }

@@ -210,6 +210,82 @@ export type CondicoesResponse = {
 };
 
 /**
+ * Os dois lados da fronteira do dia 8, espelhando o `Horizonte` do backend.
+ *
+ * **Um par, e nao um nome so.** "Previsao estendida" prometeria extensao sem
+ * dizer que a qualidade cai, que e a metade que importa — ver os verbetes
+ * *Horizonte curto* e *Horizonte longo* do `CONTEXT.md` e o ADR 0010.
+ *
+ * Uniao fechada e nao `string`: e ela que decide o que a celula desenha, e um
+ * valor novo do backend precisa quebrar a compilacao aqui, nao cair
+ * silenciosamente no ramo errado.
+ */
+export type Horizonte = "curto" | "longo";
+
+/**
+ * Um dia da grade da pagina Calendario, de qualquer um dos dois lados.
+ *
+ * **Um tipo so para os dois horizontes, com campos opcionais** — espelha
+ * `DiaDoHorizonte` do backend, e pelo mesmo motivo: a grade desenha dezesseis
+ * celulas do mesmo tipo, e o que muda entre elas e o que veio preenchido.
+ *
+ * `icon` e `description` sao `null` no horizonte longo, e a ausencia e a regra,
+ * nao a borda: o backend **nao envia o que a interface nao deve exibir**. A
+ * celula distante nao tem ceu para desenhar porque o dado que o desenharia nao
+ * chegou — e nao porque um `if` daqui decidiu escondê-lo.
+ *
+ * Maxima, minima e chuva sao opcionais porque **a borda vem incompleta**:
+ * medido contra o servico real, os valores do ultimo dia (e a probabilidade
+ * dos dois ultimos) podem vir `null`, variando com a cidade e com a hora local.
+ * A celula omite o que nao veio; ela nao some.
+ */
+export type DiaDoHorizonte = {
+  /** Data local da cidade (`2026-09-14`), sem horario. */
+  date: string;
+  /**
+   * A que lado da fronteira do dia 8 este dia pertence.
+   *
+   * **Campo declarado, e nao regra de indice que o frontend redescobre.** Se a
+   * Open-Meteo mudar o encadeamento de modelos, o ajuste e no backend e nao em
+   * dois lugares que precisariam concordar.
+   */
+  horizonte: Horizonte;
+  high: number | null;
+  low: number | null;
+  precipitation_mm: number | null;
+  /**
+   * Probabilidade maxima de precipitacao do dia, em %.
+   *
+   * Vem nos dezesseis dias, e a interface so a exibe no horizonte longo, onde
+   * substitui o numero seco. E o unico canal de incerteza que o endpoint
+   * padrao serve de graca — nao ha spread de temperatura (ADR 0010).
+   */
+  precipitation_probability_max: number | null;
+  /** Ausente no horizonte longo, junto de `icon` e `description`. */
+  weather_code: number | null;
+  description: string | null;
+  icon: string | null;
+};
+
+/**
+ * Os dezesseis dias da pagina Calendario.
+ *
+ * **Sem `location` e sem `units`**, como `TrendsResponse` e `CondicoesResponse`:
+ * o cabecalho ja monta o nome da cidade a partir do painel, e as unidades vem
+ * de la tambem.
+ */
+export type HorizonteResponse = {
+  /**
+   * Os dezesseis dias em ordem cronologica, comecando no dia corrente.
+   *
+   * Dezesseis e o teto do endpoint da Open-Meteo, nao uma escolha de produto
+   * sobre trinta (ADR 0010).
+   */
+  dias: DiaDoHorizonte[];
+  attribution: string;
+};
+
+/**
  * Uma materia de clima ou meio ambiente, vinda de feed publico.
  *
  * **O unico conteudo do app que nao e sobre a cidade escolhida.** Nao e dado

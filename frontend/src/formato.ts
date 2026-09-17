@@ -18,8 +18,16 @@ const DIAS = [
   "quinta-feira", "sexta-feira", "sabado",
 ];
 
-/** Abreviacoes para o painel da semana, onde sete nomes inteiros nao caberiam. */
-const DIAS_CURTOS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sab"];
+/**
+ * Abreviacoes para o painel da semana, onde sete nomes inteiros nao caberiam.
+ *
+ * Exportada por causa da grade do Calendario, que rotula as **colunas** com
+ * exatamente estes sete nomes — as colunas da grade sao os dias da semana que
+ * `diaDaSemanaCurto` devolve, e nao uma segunda lista que por acaso coincide.
+ * Uma copia local ali seria um lugar a mais para discordar desta na primeira
+ * vez que alguem acentuasse "Sab".
+ */
+export const DIAS_CURTOS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sab"];
 
 const MESES_CURTOS = [
   "jan", "fev", "mar", "abr", "mai", "jun",
@@ -37,6 +45,74 @@ const MESES_CURTOS = [
 function indiceDoDia(data: string): number {
   const [ano, mes, dia] = data.slice(0, 10).split("-").map(Number);
   return new Date(Date.UTC(ano, mes - 1, dia)).getUTCDay();
+}
+
+/**
+ * Quantas colunas vazias precedem o primeiro dia numa grade que comeca no
+ * domingo.
+ *
+ * **A primeira aritmetica de calendario do app**, e nao so recorte de texto: a
+ * grade do Calendario nao comeca no domingo, comeca hoje, e sem este empurrao
+ * o dia 14 cairia na coluna de domingo so por ser o primeiro da lista.
+ *
+ * O indice do dia da semana ja e o proprio deslocamento — domingo e 0, e um
+ * domingo nao precisa de coluna vazia nenhuma —, e por isso esta funcao e fina.
+ * Ela existe assim mesmo para nomear o que o numero significa no layout: quem
+ * le `gridColumnStart` na celula nao tem como saber que `getUTCDay` era um
+ * offset de coluna.
+ */
+export function colunasVaziasAntesDe(data: string): number {
+  return indiceDoDia(data);
+}
+
+/**
+ * "setembro de 2026" — o cabecalho de um trecho de mes dentro da grade.
+ *
+ * Os dezesseis dias atravessam o limite do mes quase sempre, e sem esta linha a
+ * grade exibiria "28, 29, 30, 1, 2" sem dizer que virou outubro. Com o ano
+ * junto porque a virada de dezembro tambem e virada de ano, e ali "janeiro"
+ * sozinho seria ambiguo.
+ *
+ * Recorte de texto, e nao conversao — a regra deste modulo. Nem `Date.UTC` e
+ * preciso aqui: mes e ano estao no proprio texto, e so o dia da semana exige
+ * aritmetica de calendario.
+ */
+export function mesEAno(data: string): string {
+  const [ano, mes] = data.slice(0, 10).split("-").map(Number);
+  return `${MESES[mes - 1]} de ${ano}`;
+}
+
+/** O numero do dia no mes: "14" a partir de `2026-09-14`. O rotulo da celula. */
+export function diaDoMes(data: string): string {
+  return String(Number(data.slice(8, 10)));
+}
+
+/**
+ * "8 de outubro" — a data em que a fronteira do dia 8 cai.
+ *
+ * Sem dia da semana e sem ano, ao contrario de `dataPorExtenso`: ela aparece no
+ * meio de uma frase corrida ("A partir de 8 de outubro, a previsao vem de outro
+ * modelo"), e ali o dia da semana seria ruido.
+ */
+export function diaEMes(data: string): string {
+  const [, mes, dia] = data.slice(0, 10).split("-").map(Number);
+  return `${dia} de ${MESES[mes - 1]}`;
+}
+
+/**
+ * Se duas datas caem no mesmo mes.
+ *
+ * Comparacao de texto, e nao de `Date`: `"2026-09"` contra `"2026-10"` decide a
+ * mesma coisa sem construir data nenhuma — e, de novo, sem dar ao fuso do
+ * browser a chance de opinar.
+ */
+export function mesmoMes(uma: string, outra: string): boolean {
+  return uma.slice(0, 7) === outra.slice(0, 7);
+}
+
+/** "40%" — a probabilidade de chuva de um dia distante. */
+export function probabilidade(valor: number): string {
+  return `${Math.round(valor)}%`;
 }
 
 /**

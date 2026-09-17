@@ -26,6 +26,7 @@ import {
   ehRaiz,
 } from "./navegacao";
 import { Cadastro } from "./paginas/Cadastro";
+import { Calendario } from "./paginas/Calendario";
 import { CidadesVizinhas } from "./paginas/CidadesVizinhas";
 import { Condicoes } from "./paginas/Condicoes";
 import { Entrada } from "./paginas/Entrada";
@@ -40,6 +41,7 @@ const CONSTRUIDAS: Record<string, ComponentType> = {
   "/tendencia": Tendencia,
   "/vizinhas": CidadesVizinhas,
   "/condicoes": Condicoes,
+  "/calendario": Calendario,
   "/noticias": Noticias,
 };
 

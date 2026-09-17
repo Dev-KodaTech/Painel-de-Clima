@@ -11,6 +11,7 @@ import type {
   CidadesResponse,
   CondicoesResponse,
   Conta,
+  HorizonteResponse,
   Janela,
   NoticiasResponse,
   QuemSouResponse,
@@ -237,6 +238,30 @@ export async function buscarCondicoes(
   });
 
   return pegar<CondicoesResponse>(`/api/condicoes?${params}`, sinal);
+}
+
+/**
+ * Os dezesseis dias da pagina Calendario, com a fronteira do dia 8 declarada.
+ *
+ * Endpoint proprio, buscado na pagina (ADR 0003: so uma pagina le, entao vai
+ * nela). **Nao substitui `buscarPainel`**: a chamada de sete dias serve cinco
+ * paginas que nunca leem o dia 12, e engordá-la faria todas pagarem pelo que
+ * so esta le.
+ *
+ * So a coordenada viaja, como em `buscarHistorico` e ao contrario de
+ * `buscarCondicoes`: nada aqui depende do pais — nao ha alerta a consultar — e
+ * o nome da cidade quem exibe e o cabecalho, que ja o tem do painel.
+ */
+export async function buscarHorizonte(
+  cidade: Pick<CidadeDoPainel, "latitude" | "longitude">,
+  sinal?: AbortSignal,
+): Promise<HorizonteResponse> {
+  const params = new URLSearchParams({
+    latitude: String(cidade.latitude),
+    longitude: String(cidade.longitude),
+  });
+
+  return pegar<HorizonteResponse>(`/api/horizonte?${params}`, sinal);
 }
 
 /**
