@@ -23,7 +23,8 @@ prova de que o schema e as migracoes funcionam.
 """
 
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
+from typing import get_args
 
 import pytest
 from alembic import command
@@ -33,7 +34,7 @@ from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.orm import Session
 
 from app.db import schema
-from app.models import CidadeEscolhida
+from app.models import Atividade, CidadeEscolhida
 from app.db.repositorio import (
     EmailJaUsado,
     RepositorioEmMemoria,
@@ -67,6 +68,13 @@ LISBOA = CidadeEscolhida(
 
 DAQUI_UMA_HORA = datetime(2026, 9, 15, 12, 0, tzinfo=timezone.utc)
 
+#: Dias de plano. Datas fixas e nao `date.today()`: um teste que monta o
+#: cenario com o dia corrente muda de significado conforme a data em que roda,
+#: que e o defeito que `test_trends.py::TestUv` ja carrega.
+SEGUNDA = date(2026, 9, 21)
+TERCA = date(2026, 9, 22)
+QUARTA = date(2026, 9, 23)
+
 
 def em(latitude: float, longitude: float, country_code: str) -> CidadeEscolhida:
     """Uma cidade so com o que a identidade olha, para os casos da funcao pura."""
@@ -78,6 +86,26 @@ def em(latitude: float, longitude: float, country_code: str) -> CidadeEscolhida:
         latitude=latitude,
         longitude=longitude,
     )
+
+
+class TestAtividadesAceitas:
+    """O acoplamento entre o `CHECK` do banco e o `Literal` do dominio."""
+
+    def test_as_quatro_atividades_do_check_sao_as_do_dominio(self):
+        """O `CHECK` do banco e o `Literal` do dominio nao podem divergir.
+
+        `schema.ATIVIDADES_ACEITAS` e escrita a mao e **nao** importada de
+        `app.models`, porque o que ela alimenta e um `CHECK` em SQL — o banco o
+        guarda como texto no catalogo e nao volta a consultar o Python. Um import
+        daria a impressao de que mudar o `Literal` muda o banco, e nao muda: o que
+        muda o banco e uma migracao.
+
+        O acoplamento continua real, e e este caso que o guarda. Acrescentar a
+        quinta atividade ao dominio sem migrar o `CHECK` faria o backend julgar uma
+        atividade que o banco recusa gravar — e o erro apareceria so na primeira
+        tentativa de criar o plano, em producao.
+        """
+        assert set(schema.ATIVIDADES_ACEITAS) == set(get_args(Atividade))
 
 
 class TestIdentidadeDoLocal:
@@ -324,6 +352,119 @@ class TestRepositorio:
         assert salvo.cidade.country == ""
         assert salvo.cidade.admin1 is None
 
+    # -- planos ------------------------------------------------------------
+
+    def test_o_plano_criado_aparece_na_listagem(self, repo):
+        conta = repo.criar_conta("ana@exemplo.com", "hash")
+
+        criado = repo.criar_plano(conta.id, "Lavar as cortinas", TERCA, "lavar_roupa")
+
+        assert repo.planos(conta.id) == [criado]
+        assert criado.titulo == "Lavar as cortinas"
+        assert criado.dia == TERCA
+        assert criado.atividade == "lavar_roupa"
+
+    def test_o_plano_guarda_o_dia_como_data_sem_hora(self, repo):
+        """`date`, e nao `datetime`. A aptidao e diaria (verbete *Plano*).
+
+        O tipo e o que impede que uma hora entre por descuido — e este caso e o
+        que impede que uma implementacao futura troque a coluna por
+        `DateTime` sem ninguem notar.
+        """
+        conta = repo.criar_conta("ana@exemplo.com", "hash")
+
+        criado = repo.criar_plano(conta.id, "Correr", TERCA, "esporte")
+
+        assert criado.dia == TERCA
+        assert isinstance(criado.dia, date)
+        assert not isinstance(criado.dia, datetime)
+
+    def test_a_listagem_e_ordenada_por_dia(self, repo):
+        """Ordenada por dia, e nao por insercao: a faixa de planos e uma agenda."""
+        conta = repo.criar_conta("ana@exemplo.com", "hash")
+        repo.criar_plano(conta.id, "O ultimo", QUARTA, "viagem")
+        repo.criar_plano(conta.id, "O primeiro", SEGUNDA, "plantio")
+        repo.criar_plano(conta.id, "O do meio", TERCA, "esporte")
+
+        assert [plano.titulo for plano in repo.planos(conta.id)] == [
+            "O primeiro",
+            "O do meio",
+            "O ultimo",
+        ]
+
+    def test_dois_planos_no_mesmo_dia_tem_ordem_estavel(self, repo):
+        """Empate no dia desempata pela insercao, e nao por acaso.
+
+        Sem criterio secundario a ordem de dois planos do mesmo dia ficaria a
+        cargo do banco, e a faixa trocaria de ordem entre dois carregamentos
+        sem nada ter mudado.
+        """
+        conta = repo.criar_conta("ana@exemplo.com", "hash")
+        primeiro = repo.criar_plano(conta.id, "Primeiro", TERCA, "esporte")
+        segundo = repo.criar_plano(conta.id, "Segundo", TERCA, "viagem")
+
+        assert repo.planos(conta.id) == [primeiro, segundo]
+
+    def test_a_listagem_traz_so_os_planos_da_conta(self, repo):
+        ana = repo.criar_conta("ana@exemplo.com", "hash")
+        bia = repo.criar_conta("bia@exemplo.com", "hash")
+        repo.criar_plano(ana.id, "Da ana", TERCA, "esporte")
+        repo.criar_plano(bia.id, "Da bia", TERCA, "viagem")
+
+        assert [plano.titulo for plano in repo.planos(ana.id)] == ["Da ana"]
+        assert [plano.titulo for plano in repo.planos(bia.id)] == ["Da bia"]
+
+    def test_apagar_remove_o_plano(self, repo):
+        conta = repo.criar_conta("ana@exemplo.com", "hash")
+        criado = repo.criar_plano(conta.id, "Lavar as cortinas", TERCA, "lavar_roupa")
+
+        assert repo.apagar_plano(conta.id, criado.id) is True
+        assert repo.planos(conta.id) == []
+
+    def test_apagar_plano_de_outra_conta_nao_funciona(self, repo):
+        """Acertar o identificador nao basta: a conta entra na condicao.
+
+        A mesma regra de `remover_local`, e pela mesma razao — apagar so por id
+        deixaria uma conta apagar o plano de outra.
+        """
+        ana = repo.criar_conta("ana@exemplo.com", "hash")
+        bia = repo.criar_conta("bia@exemplo.com", "hash")
+        da_ana = repo.criar_plano(ana.id, "Da ana", TERCA, "esporte")
+
+        assert repo.apagar_plano(bia.id, da_ana.id) is False
+        assert repo.planos(ana.id) == [da_ana]
+
+    def test_apagar_plano_que_nao_existe_devolve_falso(self, repo):
+        conta = repo.criar_conta("ana@exemplo.com", "hash")
+
+        assert repo.apagar_plano(conta.id, 404) is False
+
+    def test_o_plano_aceita_dia_no_passado(self, repo):
+        """Dia passado e aceito na criacao, e a decisao esta registrada.
+
+        A pagina lida com plano de dia passado de qualquer forma (story 28), e
+        recusar aqui criaria uma regra que a listagem depois contradiz.
+        """
+        conta = repo.criar_conta("ana@exemplo.com", "hash")
+
+        criado = repo.criar_plano(conta.id, "Ja foi", date(2020, 1, 1), "viagem")
+
+        assert repo.planos(conta.id) == [criado]
+
+    def test_as_quatro_atividades_sao_aceitas(self, repo):
+        """As quatro da regra do backend, e o repositorio guarda cada uma."""
+        conta = repo.criar_conta("ana@exemplo.com", "hash")
+
+        for atividade in ("lavar_roupa", "esporte", "viagem", "plantio"):
+            repo.criar_plano(conta.id, f"Plano de {atividade}", TERCA, atividade)
+
+        assert {plano.atividade for plano in repo.planos(conta.id)} == {
+            "lavar_roupa",
+            "esporte",
+            "viagem",
+            "plantio",
+        }
+
 
 
 #: O banco dos testes marcados. Separado do de desenvolvimento por padrao: os
@@ -522,3 +663,83 @@ class TestSchemaNoPostgres:
         assert guardada.expira_em == DAQUI_UMA_HORA
         # `criada_em` vem do `now()` do banco, e tambem precisa trazer fuso.
         assert guardada.criada_em.tzinfo is not None
+
+    def test_apagar_a_conta_por_sql_leva_os_planos_junto(self, sessao_de_teste):
+        """A cascata dos planos e do **banco**, e nao um laco em Python.
+
+        O `DELETE` vai direto na tabela, sem passar pelo ORM: se a cascata
+        estivesse so no `cascade=` do relacionamento, os planos sobreviveriam
+        e a chave estrangeira levantaria. E o mesmo caso que locais e sessoes
+        ja tem, e ele existe por plano porque a coluna e nova — a garantia nao
+        se herda do vizinho.
+        """
+        conta = schema.Conta(email="ana@exemplo.com", senha_hash="h")
+        sessao_de_teste.add(conta)
+        sessao_de_teste.flush()
+
+        sessao_de_teste.add(
+            schema.Plano(
+                conta_id=conta.id,
+                titulo="Lavar as cortinas",
+                dia=TERCA,
+                atividade="lavar_roupa",
+            )
+        )
+        sessao_de_teste.flush()
+
+        sessao_de_teste.execute(
+            text("DELETE FROM contas WHERE id = :id"), {"id": conta.id}
+        )
+
+        restantes = sessao_de_teste.execute(
+            text("SELECT count(*) FROM planos WHERE conta_id = :id"), {"id": conta.id}
+        ).scalar_one()
+        assert restantes == 0
+
+    def test_o_banco_recusa_atividade_fora_das_quatro(self, sessao_de_teste):
+        """O `CHECK` vale para quem insere **por fora** da rota.
+
+        A rota ja recusa pelo `Literal` do Pydantic, e este caso pula a rota: e
+        o que prova que a garantia sobrevive a um caminho que nao passou por
+        ela — um script de importacao, um `INSERT` manual. Sem o `CHECK`, o
+        banco guardaria um plano cuja atividade nenhuma regra julga, e a faixa
+        nao teria aptidao para cruzar com ele.
+        """
+        conta = schema.Conta(email="ana@exemplo.com", senha_hash="h")
+        sessao_de_teste.add(conta)
+        sessao_de_teste.flush()
+
+        sessao_de_teste.add(
+            schema.Plano(
+                conta_id=conta.id, titulo="Dormir", dia=TERCA, atividade="dormir"
+            )
+        )
+        with pytest.raises(IntegrityError):
+            sessao_de_teste.flush()
+
+    def test_o_dia_do_plano_nao_guarda_hora(self, sessao_de_teste):
+        """A coluna e `DATE`: uma hora nao tem onde ficar.
+
+        O tipo e a decisao de dominio — a aptidao e diaria —, e este caso e o
+        que impede que alguem a troque por `TIMESTAMP` numa migracao futura
+        sem perceber o que esta prometendo.
+        """
+        conta = schema.Conta(email="ana@exemplo.com", senha_hash="h")
+        sessao_de_teste.add(conta)
+        sessao_de_teste.flush()
+
+        sessao_de_teste.add(
+            schema.Plano(
+                conta_id=conta.id, titulo="Correr", dia=TERCA, atividade="esporte"
+            )
+        )
+        sessao_de_teste.flush()
+        sessao_de_teste.expire_all()
+
+        tipo = sessao_de_teste.execute(
+            text(
+                "SELECT data_type FROM information_schema.columns "
+                "WHERE table_name = 'planos' AND column_name = 'dia'"
+            )
+        ).scalar_one()
+        assert tipo == "date"

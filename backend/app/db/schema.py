@@ -1,6 +1,6 @@
-"""As tabelas: contas, sessoes e locais salvos.
+"""As tabelas: contas, sessoes, locais salvos e planos.
 
-Tres e nada mais. O cache da API externa continua em memoria — cache que some
+Quatro e nada mais. O cache da API externa continua em memoria — cache que some
 no restart e cache funcionando — e o conjunto de cidades do GeoNames continua
 sendo o arquivo lido no boot, porque e dado que nunca muda. Ver a spec.
 
@@ -8,9 +8,11 @@ Este modulo descreve **o schema**, nao o acesso: quem le e escreve sao os
 repositorios em `app/db/repositorio.py`, e e por eles que a aplicacao entra.
 """
 
-from datetime import datetime
+from datetime import date, datetime
 
 from sqlalchemy import (
+    CheckConstraint,
+    Date,
     DateTime,
     Float,
     ForeignKey,
@@ -55,6 +57,9 @@ class Conta(Base):
         back_populates="conta", cascade="all, delete-orphan", passive_deletes=True
     )
     sessoes: Mapped[list["Sessao"]] = relationship(
+        back_populates="conta", cascade="all, delete-orphan", passive_deletes=True
+    )
+    planos: Mapped[list["Plano"]] = relationship(
         back_populates="conta", cascade="all, delete-orphan", passive_deletes=True
     )
 
@@ -144,4 +149,79 @@ class LocalSalvo(Base):
 
     __table_args__ = (
         UniqueConstraint("conta_id", "identidade", name="uq_local_por_conta"),
+    )
+
+
+#: As quatro atividades, **como o banco as conhece**.
+#:
+#: Escritas aqui e nao importadas de `app.models`: o `Literal` de la e um tipo
+#: de Python, e o que esta constante alimenta e um `CHECK` em SQL, que o banco
+#: guarda como texto no catalogo e nao volta a consultar. Importar daria a
+#: impressao de que mudar o `Literal` muda o banco, e nao muda — o que muda o
+#: banco e uma migracao.
+#:
+#: O acoplamento real e testado: `test_as_quatro_atividades_do_check_sao_as_do_dominio`
+#: falha se as duas listas divergirem, que e a protecao que um import
+#: aparentaria dar sem dar.
+ATIVIDADES_ACEITAS = ("lavar_roupa", "esporte", "viagem", "plantio")
+
+
+class Plano(Base):
+    """O que alguem pretende fazer num dia, guardado na sua conta.
+
+    Titulo livre, um dia e uma atividade — e **nada de clima**, pela mesma
+    regra do `LocalSalvo`: clima guardado envelhece, e alguem veria a previsao
+    de anteontem sem saber que e de anteontem. O plano guarda intencao; a
+    previsao e buscada fresca e cruzada na leitura (verbete *Plano*).
+    """
+
+    __tablename__ = "planos"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+
+    conta_id: Mapped[int] = mapped_column(
+        ForeignKey("contas.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+
+    #: O limite e o mesmo cuidado de `locais_salvos.name`: um teto que nao
+    #: corta titulo nenhum que alguem escreva de verdade, e que impede a linha
+    #: de megabyte. A recusa amigavel e do Pydantic, na rota; esta e a rede.
+    titulo: Mapped[str] = mapped_column(String(200), nullable=False)
+
+    #: `Date` e **nao** `DateTime`, e o tipo e a decisao: a aptidao e diaria, e
+    #: o horizonte longo nao tem dado horario. Um campo com hora prometeria uma
+    #: precisao que o dado nao tem — o mesmo erro que a fronteira do dia 8
+    #: existe para nao cometer. Com `Date`, uma hora nao entra nem por descuido.
+    dia: Mapped[date] = mapped_column(Date, nullable=False, index=True)
+
+    #: Texto com `CHECK`, e nao `ENUM` nativo nem texto livre.
+    #:
+    #: Texto livre permitiria um plano cuja atividade **nenhuma regra julga** —
+    #: a faixa de planos cruzaria o plano com a aptidao e nao acharia nenhuma.
+    #: O `CHECK` fecha isso no banco, e nao so na rota: vale para quem insere
+    #: por SQL direto, como o indice de e-mail da `Conta` ja faz.
+    #:
+    #: `ENUM` nativo daria a mesma garantia e foi rejeitado pelo custo de
+    #: mudar: acrescentar a quinta atividade exigiria `ALTER TYPE`, que no
+    #: Postgres nao roda em toda transacao, e o `downgrade` de um tipo e mais
+    #: trabalhoso que o de uma restricao. Com `CHECK`, os dois sentidos da
+    #: migracao sao um `DROP`/`CREATE CONSTRAINT`.
+    atividade: Mapped[str] = mapped_column(String(20), nullable=False)
+
+    criado_em: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    conta: Mapped["Conta"] = relationship(back_populates="planos")
+
+    __table_args__ = (
+        CheckConstraint(
+            # Montado da constante, e nao escrito a mao: a lista do `CHECK` e
+            # a mesma que o modulo declara, e escreve-la duas vezes daria a
+            # chance de a quinta atividade entrar so numa delas.
+            "atividade IN ("
+            + ", ".join(f"'{atividade}'" for atividade in ATIVIDADES_ACEITAS)
+            + ")",
+            name="ck_planos_atividade",
+        ),
     )

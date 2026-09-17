@@ -27,7 +27,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 from itertools import count
 from typing import Any, cast
 
@@ -94,6 +94,30 @@ class LocalSalvo:
     id: int
     conta_id: int
     cidade: CidadeEscolhida
+
+
+@dataclass(frozen=True)
+class Plano:
+    """Um plano: titulo, dia e atividade — e nada de clima.
+
+    Mesma regra do `LocalSalvo`, e pelo mesmo motivo: clima guardado envelhece.
+    O plano guarda **intencao**; a previsao e a aptidao daquele dia sao buscadas
+    frescas e cruzadas na leitura (verbete *Plano* do `CONTEXT.md`).
+
+    `dia` e `date` e nao `datetime`: a aptidao e diaria, e o horizonte longo nao
+    tem dado horario — um campo com hora prometeria precisao que o dado nao tem.
+
+    `atividade` e `str` e nao o `Literal` de `app.models`: o repositorio devolve
+    o que **esta no banco**, e o que garante que so as quatro entrem e o `CHECK`
+    do schema mais a validacao da rota. Tipar como `Literal` aqui afirmaria
+    sobre a linha lida uma garantia que este modulo nao aplica.
+    """
+
+    id: int
+    conta_id: int
+    titulo: str
+    dia: date
+    atividade: str
 
 
 class Repositorio(ABC):
@@ -190,6 +214,45 @@ class Repositorio(ABC):
         identificador.
         """
 
+    # -- planos ------------------------------------------------------------
+
+    @abstractmethod
+    def criar_plano(
+        self, conta_id: int, titulo: str, dia: date, atividade: str
+    ) -> Plano:
+        """Cria um plano na conta.
+
+        **Nao recusa dia no passado**, e a decisao esta registrada: a pagina
+        lida com plano de dia passado de qualquer forma (story 28), e recusar
+        aqui criaria uma regra que a listagem depois contradiz. Alguem que
+        registra no sabado o que fez na sexta nao esta cometendo um erro.
+
+        Ao contrario de `salvar_local`, **duplicar e permitido**: dois planos
+        de mesmo titulo no mesmo dia sao duas coisas que a pessoa quer fazer —
+        "lavar as cortinas" e "lavar o tapete" ja sao dois titulos, e nada
+        obriga alguem a distingui-los.
+        """
+
+    @abstractmethod
+    def planos(self, conta_id: int) -> list[Plano]:
+        """Os planos da conta, **ordenados por dia**.
+
+        Por dia e nao por insercao, ao contrario de `locais_salvos`: a faixa de
+        planos e lida como uma agenda, e a ordem em que alguem os digitou nao
+        diz nada sobre quando eles acontecem. O empate desempata pela insercao,
+        para que dois planos do mesmo dia nao troquem de lugar entre dois
+        carregamentos.
+        """
+
+    @abstractmethod
+    def apagar_plano(self, conta_id: int, plano_id: int) -> bool:
+        """Apaga o plano **se for dessa conta**. Devolve se apagou.
+
+        A conta entra na condicao pela mesma razao de `remover_local`: apagar
+        so por id deixaria uma conta apagar o plano de outra acertando o
+        identificador.
+        """
+
 
 class EmailJaUsado(Exception):
     """O e-mail ja tem conta. Levantada por `criar_conta`."""
@@ -207,8 +270,10 @@ class RepositorioEmMemoria(Repositorio):
         self._contas: dict[int, _ContaGuardada] = {}
         self._sessoes: dict[str, Sessao] = {}
         self._locais: dict[int, LocalSalvo] = {}
+        self._planos: dict[int, Plano] = {}
         self._proxima_conta = count(1)
         self._proximo_local = count(1)
+        self._proximo_plano = count(1)
 
     def _inserir_conta(self, email: str, senha_hash: str) -> Conta:
         guardada = _ContaGuardada(
@@ -265,6 +330,39 @@ class RepositorioEmMemoria(Repositorio):
         if local is None or local.conta_id != conta_id:
             return False
         del self._locais[local_id]
+        return True
+
+    def criar_plano(
+        self, conta_id: int, titulo: str, dia: date, atividade: str
+    ) -> Plano:
+        plano = Plano(
+            id=next(self._proximo_plano),
+            conta_id=conta_id,
+            titulo=titulo,
+            dia=dia,
+            atividade=atividade,
+        )
+        self._planos[plano.id] = plano
+        return plano
+
+    def planos(self, conta_id: int) -> list[Plano]:
+        # `(dia, id)` **explicito**, e nao `dia` confiando na estabilidade do
+        # `sorted` sobre a ordem de insercao do dicionario. As duas produzem o
+        # mesmo resultado hoje, mas so enquanto os ids forem monotonicos com a
+        # insercao — uma propriedade do `count()` deste modulo, e nao a regra de
+        # ordenacao. O SQL diz `ORDER BY dia, id`; dizer o mesmo aqui e o que
+        # impede as duas implementacoes de divergirem sem ninguem notar, que e a
+        # razao de existir uma bateria so para as duas.
+        return sorted(
+            (plano for plano in self._planos.values() if plano.conta_id == conta_id),
+            key=lambda plano: (plano.dia, plano.id),
+        )
+
+    def apagar_plano(self, conta_id: int, plano_id: int) -> bool:
+        plano = self._planos.get(plano_id)
+        if plano is None or plano.conta_id != conta_id:
+            return False
+        del self._planos[plano_id]
         return True
 
 
@@ -382,6 +480,40 @@ class RepositorioSql(Repositorio):
         )
         return resultado.rowcount > 0
 
+    def criar_plano(
+        self, conta_id: int, titulo: str, dia: date, atividade: str
+    ) -> Plano:
+        linha = schema.Plano(
+            conta_id=conta_id, titulo=titulo, dia=dia, atividade=atividade
+        )
+        self._sessao.add(linha)
+        self._sessao.flush()
+        return _plano_publico(linha)
+
+    def planos(self, conta_id: int) -> list[Plano]:
+        linhas = self._sessao.scalars(
+            select(schema.Plano)
+            .where(schema.Plano.conta_id == conta_id)
+            # `id` como segundo criterio: sem ele, dois planos do mesmo dia
+            # sairiam na ordem que o banco quisesse, e a faixa trocaria de
+            # ordem entre dois carregamentos sem nada ter mudado.
+            .order_by(schema.Plano.dia, schema.Plano.id)
+        ).all()
+        return [_plano_publico(linha) for linha in linhas]
+
+    def apagar_plano(self, conta_id: int, plano_id: int) -> bool:
+        resultado = cast(
+            "CursorResult[Any]",
+            self._sessao.execute(
+                delete(schema.Plano).where(
+                    schema.Plano.id == plano_id,
+                    # A conta na condicao do `DELETE`, nao num `if` antes dele.
+                    schema.Plano.conta_id == conta_id,
+                )
+            ),
+        )
+        return resultado.rowcount > 0
+
 
 def _local_publico(linha: schema.LocalSalvo) -> LocalSalvo:
     return LocalSalvo(
@@ -395,4 +527,14 @@ def _local_publico(linha: schema.LocalSalvo) -> LocalSalvo:
             latitude=linha.latitude,
             longitude=linha.longitude,
         ),
+    )
+
+
+def _plano_publico(linha: schema.Plano) -> Plano:
+    return Plano(
+        id=linha.id,
+        conta_id=linha.conta_id,
+        titulo=linha.titulo,
+        dia=linha.dia,
+        atividade=linha.atividade,
     )
