@@ -180,3 +180,40 @@ Uma quinta observação — um `aria-hidden` aninhado e morto — foi conferida 
 removida: o pai já esconde a subárvore, e um atributo inútil ao lado de um
 comentário que argumenta cuidadosamente *onde* o `aria-hidden` vai enfraquece o
 argumento.
+
+### O alinhamento da grade, quebrado desde a fatia 06 e achado agora
+
+Reportado a olho na página rodando: **hoje, 17 de setembro de 2026, uma
+quinta-feira, aparecia sob "Dom"** — e com ela as quinze células seguintes. A
+grade inteira estava deslocada quatro colunas.
+
+A causa é uma colisão entre duas decisões da fatia 06, e nenhuma das duas está
+errada sozinha. A célula virou `<button>` (para ganhar foco, `Enter` e papel), e
+o `<li>` recebeu `display: contents` para não ser uma caixa a mais no grid.
+Só que **um elemento com `display: contents` não gera caixa, logo não é item do
+grid, e toda colocação posta nele é ignorada**. O `gridColumnStart` continuava no
+`<li>`, onde a fatia 04 o havia posto: o computador de estilo o aceitava
+(`grid-column-start: 5` estava lá, medido no DOM), e o layout o descartava. Quem
+virou item do grid foi o botão, com `auto`, caindo na primeira coluna livre.
+
+Por que nada pegou isso antes:
+
+- **O anúncio sempre esteve certo.** Ele vem de `dataPorExtenso`, não da posição
+  — a célula dizia "quinta-feira, 17 de setembro" enquanto era desenhada sob
+  "Dom". Toda a verificação por leitor de tela e por teclado passava.
+- **`colunasVaziasAntesDe` sempre esteve certa.** Conferida de novo:
+  `2026-09-17` dá `4`, e a coluna `5`. O defeito não era de aritmética de data,
+  que era o lugar onde se procuraria.
+- **O compilador e o lint não têm como ver.** É semântica de CSS, não de tipos.
+
+A correção é mover o `gridColumnStart` para o **botão**, que é o item do grid de
+verdade. Verificado em três cidades de fusos diferentes — São Paulo, Auckland
+(onde a data local já é o dia 18, uma sexta) e Honolulu: as dezesseis células de
+cada uma caem na coluna do seu dia da semana, zero erradas. Conferido também no
+build de produção, e que a marca de plano, a pintura da aptidão e a fronteira do
+dia 8 continuam nas células certas.
+
+Vale como precedente: **o `display: contents` do `<li>` custa a colocação no
+grid**, e qualquer coisa que dependa de posição precisa ir no botão. Está escrito
+no comentário ao lado do `style`, que é onde alguém olharia antes de movê-lo de
+volta.

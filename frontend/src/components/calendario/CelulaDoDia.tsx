@@ -229,13 +229,7 @@ export function CelulaDoDia({
   const julgamento = julgamentoDe(dia, atividade);
 
   return (
-    <li
-      // `gridColumnStart` so na primeira celula: dali em diante o fluxo do
-      // grid ja poe cada dia na coluna seguinte sozinho. Empurrar todas seria
-      // recalcular em dezesseis lugares o que a primeira ja resolveu.
-      style={colunaInicial ? { gridColumnStart: colunaInicial } : undefined}
-      className="contents"
-    >
+    <li className="contents">
       {/*
         O dia e um **botao**, e a moldura toda mudou de elemento por causa
         disso: clicar num dia abre o detalhe dele, e um `onClick` no `<li>`
@@ -251,6 +245,28 @@ export function CelulaDoDia({
       <button
         type="button"
         onClick={() => onAbrir(dia)}
+        /*
+          O empurrao da primeira celula vai **no botao**, e nao no `<li>`.
+
+          E a consequencia do `contents` logo acima, e ela custou um bug de
+          alinhamento na grade inteira: um elemento com `display: contents` nao
+          gera caixa, entao ele **nao e item do grid** e toda colocacao posta
+          nele e simplesmente ignorada. O `<li>` ficava com um
+          `grid-column-start: 5` que o computador de estilo aceitava e o layout
+          descartava; quem virou item do grid foi o botao, com `auto`, caindo na
+          primeira coluna livre.
+
+          O sintoma era a grade inteira deslocada: hoje, 17 de setembro de 2026,
+          uma quinta-feira, aparecia sob "Dom" — e com ela os quinze dias
+          seguintes. Nada disso quebrou o anuncio, que sempre disse
+          "quinta-feira, 17 de setembro" por vir de `dataPorExtenso` e nao da
+          posicao; o alinhamento era o unico canal errado, e e o canal de que a
+          story 3 depende (achar "a proxima quinta" sem contar).
+
+          So na primeira celula: dali em diante o fluxo do grid ja poe cada dia
+          na coluna seguinte sozinho.
+        */
+        style={colunaInicial ? { gridColumnStart: colunaInicial } : undefined}
         className={[
           "flex min-h-[104px] flex-col gap-0.5 rounded-inner p-2 text-left outline-none transition-shadow focus-visible:ring-2 focus-visible:ring-brand/50",
         // A moldura do horizonte longo e tracejada e **sem fundo proprio**: o
