@@ -447,3 +447,4 @@ colisão que faz alguém ler `sessao.criar()` e entender o contrário.
 O Tailwind v4 é CSS-first: os tokens de design ficam num bloco `@theme` em
 [`frontend/src/index.css`](frontend/src/index.css). Não existe
 `tailwind.config.js` nem `postcss.config.js` — quem vem da v3 vai procurá-los.
+# Painel-de-Clima
