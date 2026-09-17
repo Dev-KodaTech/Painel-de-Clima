@@ -117,8 +117,21 @@ async def test_o_horizonte_de_dezesseis_dias_ainda_e_aceito():
 
     # O horizonte curto inteiro vem preenchido: e o que a grade julga e exibe
     # com icone, e um nulo aqui seria outra historia.
+    #
+    # `relative_humidity_2m_mean` entra nesta lista **porque a aptidao depende
+    # dela**: e a variavel que decide se a roupa seca, e ela nao vinha do
+    # endpoint de previsao ate a fatia 05 — so do `archive-api`, para o
+    # passado. Se a Open-Meteo parar de servi-la como variavel diaria aqui, o
+    # julgamento de lavar roupa passa a olhar so a chuva e um dia de 95% de
+    # umidade vira "otimo para estender no varal", **sem erro nenhum**. E este
+    # teste que avisa.
     primeiro_longo = open_meteo.PRIMEIRO_DIA_DO_HORIZONTE_LONGO
-    for campo in ("temperature_2m_max", "temperature_2m_min", "weather_code"):
+    for campo in (
+        "temperature_2m_max",
+        "temperature_2m_min",
+        "weather_code",
+        "relative_humidity_2m_mean",
+    ):
         assert all(valor is not None for valor in diario[campo][:primeiro_longo])
 
     # E a probabilidade cobre o horizonte longo, que e onde ela substitui o

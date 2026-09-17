@@ -367,6 +367,85 @@ class CondicoesResponse(BaseModel):
 #: que importa (CONTEXT.md, ADR 0010).
 Horizonte = Literal["curto", "longo"]
 
+#: As quatro atividades que a aptidao sabe julgar.
+#:
+#: **Fechadas, e nao uma lista que a pessoa edita.** Cada uma e uma regra
+#: escrita sobre variaveis nomeadas da previsao (ver `services/aptidao.py`), e
+#: uma atividade sem regra propria seria um rotulo que nao julga nada — o
+#: verbete *Atividade* do `CONTEXT.md` e explicito. Acrescentar a quinta e
+#: escrever a regra dela, nao acrescentar uma string aqui.
+Atividade = Literal["lavar_roupa", "esporte", "viagem", "plantio"]
+
+#: Os tres niveis de aptidao. **A unica definicao deles** — o
+#: `services/aptidao.py` importa esta, em vez de manter um `Enum` paralelo que
+#: precisaria concordar.
+#:
+#: **Tres, e nao um numero de 0 a 100**: um score sugeriria uma precisao que a
+#: regra nao tem — ela e um punhado de limiares sobre cinco variaveis — e
+#: obrigaria a interface a inventar faixas para voltar a nomea-lo (verbete
+#: *Aptidao*: nao e score, nota nem indice).
+NivelDeAptidao = Literal["boa", "media", "ruim"]
+
+
+#: Qual variavel reprovou um dia para uma atividade.
+#:
+#: **Fechada, como todo conjunto fechado deste arquivo** — e nao `str` livre. A
+#: interface agrupa e iconiza por este valor, e um nome novo vindo do backend
+#: precisa quebrar a validacao aqui, nao cair num `else` silencioso do
+#: frontend. Acrescentar uma variavel e acrescentar um membro.
+VariavelDaAptidao = Literal[
+    "chuva", "umidade", "vento", "calor", "frio", "tempestade", "neve"
+]
+
+
+class MotivoDaAptidao(BaseModel):
+    """Por que um dia foi reprovado para uma atividade.
+
+    **O motivo viaja junto do nivel**, e nao e reconstruido pela interface a
+    partir dos numeros do dia: quem aplicou o limiar sabe qual variavel pesou,
+    e refazer essa conta no frontend seria manter a mesma regra em dois lugares
+    (a mesma razao de a condicao prevista trazer `detail` pronto).
+
+    So existe no nivel `ruim`. Um dia bom nao tem motivo a dar — "nada
+    atrapalha" nao e informacao —, e um dia medio e o que sobra quando nenhum
+    limiar reprovou e nem todos os criterios de dia bom foram atendidos, que e
+    um estado sem culpado unico a nomear.
+    """
+
+    variavel: VariavelDaAptidao = Field(
+        description=(
+            "Qual variavel reprovou. Nomeada e fechada para que a interface "
+            "possa agrupar ou iconizar sem interpretar texto."
+        )
+    )
+    texto: str = Field(
+        description="A frase pronta para exibir, com o valor que reprovou."
+    )
+
+
+class JulgamentoDeAptidao(BaseModel):
+    """O quanto um dia serve para **uma** atividade.
+
+    Distinto de `CondicaoPrevista`, e a distincao e de natureza e nao de grau:
+    aquela diz que o tempo e perigoso, esta diz que o tempo serve ou nao serve
+    para uma intencao sua. Um dia sem condicao prevista nenhuma pode ter
+    aptidao pessima (ADR 0011 e o verbete *Aptidao*).
+    """
+
+    atividade: Atividade
+    rotulo: str = Field(
+        description=(
+            "O nome da atividade para exibir. Vem do backend, com as outras "
+            "frases prontas, para que o frontend nao mantenha um segundo mapa "
+            "de `Atividade` para texto."
+        )
+    )
+    nivel: NivelDeAptidao
+    motivo: MotivoDaAptidao | None = Field(
+        default=None,
+        description="Presente **so** no nivel `ruim`: qual variavel reprovou.",
+    )
+
 
 class DiaDoHorizonte(BaseModel):
     """Um dia da grade da pagina Calendario, de qualquer um dos dois lados.
@@ -425,6 +504,19 @@ class DiaDoHorizonte(BaseModel):
     )
     description: str | None = None
     icon: str | None = None
+    aptidoes: list[JulgamentoDeAptidao] = Field(
+        default_factory=list,
+        description=(
+            "A aptidao do dia para cada uma das quatro atividades. **Lista "
+            "vazia no horizonte longo** — ausencia, e nao um nivel "
+            "`desconhecido` que a interface teria de filtrar.\n\n"
+            "A skill de precipitacao colapsa antes da de temperatura, e a "
+            "decisao que a aptidao informa e de 1 a 5 dias: julgar o dia 14 "
+            "seria dar conselho sobre dado que nao sustenta conselho "
+            "(ADR 0010). Pela mesma regra de `icon` e `description`, o backend "
+            "nao envia o que a interface nao deve exibir."
+        ),
+    )
 
 
 class HorizonteResponse(BaseModel):

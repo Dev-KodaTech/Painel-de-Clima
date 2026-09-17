@@ -11,12 +11,22 @@ foi testado e rejeitado por ser perigoso: com 1,5x a mediana da semana,
 Wellington (mediana de rajada 76 km/h) trata 86 km/h como normal e nao emite
 aviso nenhum numa semana de rajadas de 86. Perigo e absoluto — 86 km/h derruba
 galho em Wellington igual a Cairo.
+
+**O `services/aptidao.py` tambem usa limiares absolutos, e o motivo dele nao e
+este.** Os dois arquivos tem constantes de limiar no topo com comentario de
+calibracao, e a semelhanca e superficial: la se julga se o tempo *serve para
+uma intencao*, e nao se ele e perigoso — nao ha nada de absoluto em "bom dia
+para secar roupa" da forma como ha em "vento que derruba galho". O argumento
+daqui **nao transfere para la**, e o
+`docs/adr/0011-aptidao-e-absoluta-pelo-motivo-oposto.md` registra a diferenca
+justamente para que quem mexer num dos dois nao aplique o raciocinio do outro.
 """
 
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 
 from app.models import CondicaoPrevista
+from app.services.wmo import CODIGOS_TEMPESTADE
 
 #: Rajada maxima do dia, em km/h. Calibrado sobre 42 dias-cidade: >=40 marca
 #: 26% dos dias e >=50 marca 21% (ruidoso demais); >=80 perde eventos reais.
@@ -27,9 +37,13 @@ LIMIAR_VENTO_KMH = 60.0
 #: dos dias e >=20 mm marca 4%.
 LIMIAR_CHUVA_MM = 20.0
 
-#: Os codigos WMO de tempestade: trovoada, e trovoada com granizo fraco e
-#: forte. Nao ha metrica a comparar — o codigo e o gatilho.
-CODIGOS_TEMPESTADE = frozenset({95, 96, 99})
+#: Os codigos de tempestade vem de `wmo.py`, que e onde a tabela mora.
+#:
+#: **Nao sao um limiar calibrado, ao contrario dos dois acima**: quais codigos
+#: significam trovoada e fato externo, e nao decisao deste modulo. Por isso sao
+#: compartilhados com o `aptidao.py`, enquanto os limiares de vento e de chuva
+#: continuam calibrados aqui, para o que este modulo julga. Nao ha metrica a
+#: comparar — o codigo e o gatilho.
 
 #: Quantos cards o painel comporta. Com o dedup por categoria, nenhuma das seis
 #: cidades da amostra passou de dois; o limite existe para a semana que passar.

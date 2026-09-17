@@ -77,6 +77,23 @@ TABELA_WMO: dict[int, CondicaoWMO] = {
 }
 
 
+#: Os codigos de tempestade: trovoada, e trovoada com granizo fraco e forte.
+#:
+#: Moram aqui, e nao no modulo que os usa, porque **sao a tabela WMO e nao uma
+#: decisao de produto**: quais codigos significam trovoada e fato externo, ao
+#: contrario dos limiares de vento e de chuva, que cada modulo calibra para o
+#: que ele julga. `condicoes.py` e `aptidao.py` leem os dois deste lugar —
+#: duplicados, eles precisariam concordar sem que nada obrigasse.
+CODIGOS_TEMPESTADE = frozenset({95, 96, 99})
+
+#: Os codigos de neve e granizo (incluindo as pancadas de neve, 85 e 86).
+#:
+#: Usados so pela aptidao de viagem, que e a unica coisa no app que eles
+#: atrapalham em volume que nao chega a ser chuva forte: 2 mm de neve fecham
+#: estrada que 2 mm de chuva nao fecham.
+CODIGOS_NEVE = frozenset({71, 73, 75, 77, 85, 86})
+
+
 def traduzir(weather_code: int, is_day: bool = True) -> tuple[str, str]:
     """Devolve `(description, icon)` para um codigo WMO.
 

@@ -142,15 +142,30 @@ DIAS_DO_HORIZONTE = 16
 #: falhar. Quem avisa e o teste de contrato marcado em `test_contract.py`.
 PRIMEIRO_DIA_DO_HORIZONTE_LONGO = 7
 
-#: As variaveis diarias do horizonte: as sete do painel mais a probabilidade de
-#: precipitacao.
+#: As variaveis diarias do horizonte: as sete do painel, a probabilidade de
+#: precipitacao e a umidade media.
 #:
 #: `precipitation_probability_max` e o **unico canal de incerteza gratuito** do
 #: endpoint padrao — nao existe `temperature_2m_max_spread` aqui, e obte-lo
 #: exigiria o ensemble e o calculo sobre `_member01..31` a mao. E por isso que o
 #: horizonte longo exibe a probabilidade no lugar do numero seco: e a unica
 #: incerteza honesta disponivel sem trocar de API (ADR 0010).
-VARIAVEIS_DO_HORIZONTE = (*VARIAVEIS_DIARIAS, "precipitation_probability_max")
+#:
+#: `relative_humidity_2m_mean` entra **por causa da aptidao**, e e a unica
+#: variavel daqui que nao vira pixel: lavar roupa depende dela, e sem ela a
+#: regra julgaria a secagem so pela chuva — um dia de 95% de umidade sem chuva
+#: nenhuma passaria como otimo para estender roupa no varal.
+#:
+#: Ate esta fatia ela so existia no `historico.py`, pedida ao `archive-api`
+#: para o passado. Verificado contra o servico real: o endpoint de previsao a
+#: serve como variavel **diaria** nos dezesseis dias, sem nulos. Entra aqui e
+#: **nao** em `VARIAVEIS_DIARIAS`: a chamada de sete dias serve cinco paginas
+#: que nao julgam aptidao nenhuma, e engorda-la faria todas pagarem (ADR 0003).
+VARIAVEIS_DO_HORIZONTE = (
+    *VARIAVEIS_DIARIAS,
+    "precipitation_probability_max",
+    "relative_humidity_2m_mean",
+)
 
 
 async def buscar_horizonte(

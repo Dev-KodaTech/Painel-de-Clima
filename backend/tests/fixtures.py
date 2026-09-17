@@ -638,6 +638,15 @@ FORECAST_DEZESSEIS_BERLIM = {
             0, 0, 68, 3, 0, 45, 10, 72,
             55, 18, 8, 61, 48, 12, 5, 39,
         ],
+        # A umidade entra por causa da aptidao — lavar roupa depende dela. Os
+        # valores sao de Berlim, que e temperada: variam em torno de 70% e
+        # deixam a reprovacao por umidade (>=92%) de fora, para que os casos
+        # daqui exercitem a fronteira do dia 8 e nao a calibracao. O tropico
+        # umido, que e onde o limiar e testado, mora no `test_aptidao.py`.
+        "relative_humidity_2m_mean": [
+            62, 55, 78, 64, 60, 81, 66, 84,
+            76, 63, 58, 79, 74, 61, 57, 72,
+        ],
     },
 }
 

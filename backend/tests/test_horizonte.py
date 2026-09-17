@@ -100,6 +100,65 @@ def test_os_dias_vem_com_data_maxima_e_minima(horizonte):
         assert isinstance(dia["low"], float)
 
 
+def test_a_aptidao_so_existe_no_horizonte_curto(horizonte):
+    """**Os dias 8 a 16 nao trazem aptidao** — ausencia, e nao "desconhecido".
+
+    A skill de precipitacao colapsa antes da de temperatura, e a decisao que a
+    aptidao informa e de 1 a 5 dias: julgar o dia 14 seria dar conselho sobre
+    dado que nao sustenta conselho (ADR 0010).
+
+    Lista vazia e nao um nivel `desconhecido`: um valor que a interface teria
+    de filtrar e o erro do campo `alerts` do ADR 0001 outra vez — o dado
+    sugere um uso que a regra proibe.
+    """
+    curtos = horizonte["dias"][:PRIMEIRO_DIA_DO_HORIZONTE_LONGO]
+    longos = horizonte["dias"][PRIMEIRO_DIA_DO_HORIZONTE_LONGO:]
+
+    for dia in curtos:
+        assert len(dia["aptidoes"]) == 4
+
+    for dia in longos:
+        assert dia["aptidoes"] == []
+
+
+def test_cada_aptidao_nomeia_a_atividade_e_o_nivel(horizonte):
+    """A grade pinta pela atividade escolhida, e precisa acha-la pelo nome."""
+    primeiro = horizonte["dias"][0]
+
+    assert {j["atividade"] for j in primeiro["aptidoes"]} == {
+        "lavar_roupa",
+        "esporte",
+        "viagem",
+        "plantio",
+    }
+    for julgamento in primeiro["aptidoes"]:
+        assert julgamento["nivel"] in {"boa", "media", "ruim"}
+        assert julgamento["rotulo"]
+
+
+def test_o_dia_reprovado_diz_por_que(horizonte):
+    """A story 12 depende disto: o motivo separa conselho de palpite.
+
+    O terceiro dia da fixture e de tempestade (codigo 95) com 6 mm de chuva —
+    reprova as quatro atividades, e cada julgamento tem de dizer qual variavel
+    pesou.
+    """
+    dia_de_tempestade = horizonte["dias"][2]
+
+    for julgamento in dia_de_tempestade["aptidoes"]:
+        assert julgamento["nivel"] == "ruim"
+        assert julgamento["motivo"]["variavel"]
+        assert julgamento["motivo"]["texto"]
+
+
+def test_o_dia_aprovado_nao_inventa_motivo(horizonte):
+    """"Nada atrapalha" nao e informacao, e o campo fica nulo."""
+    for dia in horizonte["dias"][:PRIMEIRO_DIA_DO_HORIZONTE_LONGO]:
+        for julgamento in dia["aptidoes"]:
+            if julgamento["nivel"] != "ruim":
+                assert julgamento["motivo"] is None
+
+
 def test_a_atribuicao_vem_da_funcao_e_nao_de_uma_constante(horizonte):
     """O padrao que a pagina Noticias estabeleceu: cada endpoint credita o seu.
 

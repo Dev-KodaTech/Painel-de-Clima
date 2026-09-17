@@ -26,7 +26,7 @@ from app.models import (
     WeatherResponse,
     atribuicao,
 )
-from app.services import condicoes, inmet, open_meteo, reverso, vizinhas
+from app.services import aptidao, condicoes, inmet, open_meteo, reverso, vizinhas
 from app.services.geonames import CidadeLocal
 from app.services.wmo import traduzir
 
@@ -198,6 +198,11 @@ def _dias_do_horizonte(daily: dict) -> list[DiaDoHorizonte]:
 
     A probabilidade de precipitacao vai nos dezesseis: e o unico canal de
     incerteza gratuito, e quem decide onde exibi-la e a interface.
+
+    **A aptidao para no dia 7 pela mesma regra**, e nao por economia: a skill
+    de precipitacao colapsa antes da de temperatura, e a decisao que a aptidao
+    informa e de 1 a 5 dias (ADR 0010). O dia distante vem com a lista vazia —
+    ausencia, e nao um nivel "desconhecido" que a interface teria de filtrar.
     """
     dias = []
     for indice, data in enumerate(daily["time"]):
@@ -221,6 +226,10 @@ def _dias_do_horizonte(daily: dict) -> list[DiaDoHorizonte]:
                 weather_code=None if longo else codigo,
                 description=description,
                 icon=icon,
+                # Vazia no horizonte longo, junto de `icon` e `description`, e
+                # pelo mesmo motivo: o backend nao envia o que a interface nao
+                # deve exibir.
+                aptidoes=[] if longo else aptidao.julgar_dia_do_bloco(daily, indice),
             )
         )
     return dias
