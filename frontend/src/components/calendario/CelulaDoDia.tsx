@@ -78,6 +78,18 @@ type Props = {
    * dia com ela passariam pelo mesmo `find` num lugar que nao e o dono do dado.
    */
   atividade: Atividade | null;
+  /**
+   * Se ha ao menos um plano neste dia.
+   *
+   * **Booleano e nao contagem**: a marca diz "ha plano aqui", e quem lista e a
+   * faixa ao lado. Um numero na celula competiria com a data, a maxima e a
+   * minima por um espaco de 104 px e responderia uma pergunta que ninguem faz
+   * olhando a grade.
+   *
+   * Falso tambem para quem nao tem conta — sem planos, nao ha o que marcar — e
+   * e por isso que a marca nao precisa saber se ha sessao.
+   */
+  temPlano?: boolean;
   /** Abre o detalhe deste dia. */
   onAbrir: (dia: DiaDoHorizonte) => void;
 };
@@ -147,6 +159,7 @@ function anuncio(
   units: UnidadesDaGrade,
   hoje: boolean,
   julgamento: JulgamentoDeAptidao | null,
+  temPlano: boolean,
 ): string {
   const partes = [hoje ? `Hoje, ${dataPorExtenso(dia.date)}` : dataPorExtenso(dia.date)];
 
@@ -190,6 +203,15 @@ function anuncio(
     );
   }
 
+  // A marca de plano **tambem** entra na frase, e nao so no ponto desenhado:
+  // um ponto e cor e forma, e nenhum dos dois chega a quem ouve a grade. Quem
+  // navega por teclado precisa saber que ha plano ali sem abrir o dia.
+  //
+  // Sem dizer **quantos** nem **quais**: a faixa ao lado lista, e repetir os
+  // titulos em dezesseis celulas faria o leitor recitar a lista inteira ao
+  // atravessar a grade.
+  if (temPlano) partes.push("com plano seu");
+
   return partes.join(", ");
 }
 
@@ -200,6 +222,7 @@ export function CelulaDoDia({
   colunaInicial,
   abreOHorizonteLongo = false,
   atividade,
+  temPlano = false,
   onAbrir,
 }: Props) {
   const longo = dia.horizonte === "longo";
@@ -275,7 +298,9 @@ export function CelulaDoDia({
         usam neste repo, pelo mesmo motivo: a leitura auditiva do conteudo e
         outra da visual, e nao uma etiqueta colada por cima.
       */}
-      <span className="sr-only">{anuncio(dia, units, hoje, julgamento)}</span>
+      <span className="sr-only">
+        {anuncio(dia, units, hoje, julgamento, temPlano)}
+      </span>
 
       <div className="flex items-baseline justify-between">
         <span
@@ -288,6 +313,28 @@ export function CelulaDoDia({
           <span className="text-[10px] font-medium text-white/80" aria-hidden="true">
             hoje
           </span>
+        )}
+        {/*
+          A marca de plano: um ponto no canto superior, onde nada mais disputa.
+
+          **Nao e cor sozinha**, e nao poderia ser — a celula ja usa cor para a
+          aptidao, e um segundo significado cromatico na mesma caixa seria
+          ilegivel mesmo para quem enxerga todas. O ponto e uma **forma** que
+          aparece ou nao aparece, que e um canal binario e nao uma escala; e o
+          anuncio diz "com plano seu" por extenso para quem ouve.
+
+          Herda a cor do texto corrente (`currentColor` via `bg-current`), e
+          isso resolve os quatro fundos de uma vez: branco sobre o azul de hoje,
+          a cor do nivel sobre a celula pintada, o cinza do texto sobre o cartao.
+          Cada um desses ja foi medido contra o seu fundo — escolher uma cor
+          fixa aqui exigiria medir um quinto par, e o par pior (cinza sobre
+          vermelho) e justamente o que a fatia 06 teve de corrigir.
+        */}
+        {temPlano && (
+          <span
+            aria-hidden="true"
+            className={`size-1.5 shrink-0 rounded-full ${hoje ? "bg-white" : "bg-current"}`}
+          />
         )}
       </div>
 

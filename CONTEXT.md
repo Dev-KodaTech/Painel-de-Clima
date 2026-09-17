@@ -1,8 +1,9 @@
 # Painel de Clima
 
 Uma aplicação que mostra, para uma cidade, o tempo agora e a previsão dos
-próximos sete dias. O backend busca, combina e traduz os dados da API externa;
-o frontend consome apenas o backend próprio.
+próximos dias — sete na Visão geral, dezesseis na página Calendário. O backend
+busca, combina e traduz os dados da API externa; o frontend consome apenas o
+backend próprio.
 
 ## Language
 
@@ -114,6 +115,85 @@ FAPESP. Sempre nomeado junto da notícia: a licença exige crédito, e uma maté
 sem veículo não deixa a pessoa julgar o que está lendo.
 _Avoid_: fonte, publisher, portal
 
+### Previsão
+
+**Horizonte curto**:
+Os dias 1 a 7 da previsão. É o que o app sempre mostrou, e o que continua
+merecendo ícone de céu, máxima, mínima e aptidão.
+
+Não é "a previsão" sem qualificar: desde que a página Calendário existe, previsão
+também chega ao dia 16, e a palavra sozinha deixou de dizer qual das duas.
+_Avoid_: a semana, os sete dias (como nome do horizonte)
+
+**Horizonte longo**:
+Os dias 8 a 16. Vem de modelo mais grosso — a fonte troca de ICON para ECMWF no
+dia 8, com ~25 km no lugar de 2–11 km —, e a troca aparece no dado como um degrau
+que não é meteorologia.
+
+Existe com menos precisão declarada: sem ícone de céu, sem aptidão, com a
+probabilidade de chuva no lugar do número seco. A redução não é decoração
+defensiva, é o que o dado suporta (ADR 0010).
+
+O par com *horizonte curto* é deliberado. Um nome só — "previsão estendida" —
+prometeria extensão sem dizer que a qualidade cai, e é justamente a queda que
+justifica a página desenhar uma fronteira em vez de uma curva contínua.
+_Avoid_: previsão estendida, longo prazo, próximos 15 dias
+
+### Aptidão
+
+**Aptidão**:
+O quanto um dia serve para uma atividade — lavar roupa, esporte ao ar livre,
+viagem, plantio. Derivada da previsão por limiares nossos, como a condição
+prevista, e absoluta pelo motivo oposto ao dela (ADR 0011).
+
+Distinta de **condição prevista**: aquela diz que o tempo é perigoso, esta diz
+que o tempo serve ou não serve para uma intenção sua. Um dia sem condição
+prevista nenhuma pode ter aptidão péssima — 100% de umidade e sem sol não é
+severo, mas a roupa não seca. Confundi-las faria a página Calendário parecer uma
+segunda página Condições, mais permissiva.
+
+Existe para todo dia do horizonte curto, tenha alguém planejado algo ou não: é do
+mundo, não da pessoa. Não se guarda — é recalculada a cada leitura.
+_Avoid_: condição, recomendação, score, nota, índice
+
+**Atividade**:
+Uma das intenções que a aptidão sabe julgar. São quatro, fixas, e não uma lista
+que a pessoa edita: cada uma é uma regra escrita sobre variáveis da previsão, e
+uma atividade sem regra seria um rótulo que não julga nada.
+_Avoid_: categoria, tipo, tag
+
+### Planos
+
+**Plano**:
+O que alguém pretende fazer num dia, guardado na sua conta: um título livre, um
+dia e uma atividade.
+
+Distinto de *aptidão*: a aptidão é do mundo e existe para todo dia; o plano é da
+pessoa e existe porque alguém o criou. A página cruza os dois — o plano diz o que
+você quer fazer, a aptidão daquele dia diz se o tempo colabora.
+
+É o segundo conceito do app que **persiste e tem dono**, ao lado do local salvo,
+e segue a mesma regra que ele: **não guarda clima**. Clima guardado envelhece, e
+alguém veria a previsão de anteontem sem saber que é de anteontem. O plano guarda
+intenção; a previsão é buscada fresca e cruzada na leitura.
+
+**Não tem hora.** A aptidão é diária e o horizonte longo não tem dado horário —
+um campo de hora prometeria uma precisão que o dado não tem, que é o mesmo erro
+que a fronteira do dia 8 existe para não cometer. Por isso plano não é
+compromisso: não é uma agenda, e nada aqui convida ninguém nem envia nada.
+
+**Um plano de dia passado continua existindo**, esmaecido e agrupado à parte, e
+**sem aptidão** — a previsão daquele dia já não existe, e o app não a guardou
+(ADR 0012). Ele só sai da lista quando o dono o apaga: sumir sozinho seria o app
+descartando o que alguém criou, sem deixar rastro de que descartou.
+
+**O plano é da conta; a aptidão ao lado dele é da cidade.** Trocar de cidade não
+mexe nos planos — a mesma lista aparece em São Paulo e em Belém —, mas muda o
+julgamento exibido junto de cada um: o dia 19 é *mediano* para lavar roupa em São
+Paulo e *ruim* em Belém, e nenhum plano foi tocado. É a consequência menos óbvia
+de a página Calendário ser mista.
+_Avoid_: evento, compromisso, tarefa, lembrete, agendamento, reunião
+
 ### Histórico
 
 **Histórico climatológico**:
@@ -154,11 +234,17 @@ _Avoid_: card, widget, bloco, "o painel completo"
 
 **Página**:
 Uma das oito visões alcançáveis pela barra lateral: Visão geral, Tendência,
-Cidades vizinhas, Locais salvos, Condições, Sete dias, Notícias e Ajustes. Uma
+Cidades vizinhas, Locais salvos, Condições, Calendário, Notícias e Ajustes. Uma
 página ocupa a área de conteúdo inteira e tem URL própria.
 
-Sete delas mostram a mesma coisa para qualquer pessoa que abra a URL. Locais
-salvos é a exceção — a mesma URL mostra conteúdo diferente conforme a conta.
+Seis delas mostram a mesma coisa para qualquer pessoa que abra a URL. Duas
+dependem de quem está olhando: Locais salvos, que é inteira da conta, e
+Calendário, que é **mista** — a previsão e a aptidão são função da cidade e viajam
+na URL, e só a faixa de planos é função da conta.
+
+Calendário é o caso que mostra que a fronteira entre estado da URL e estado da
+conta não corre entre páginas, e sim dentro delas: a mesma página pode ter uma
+parte que qualquer link reproduz e outra que só o dono vê.
 
 Distinta de painel: um painel mora *dentro* de uma página, e a mesma informação
 pode aparecer resumida num painel da Visão geral e por inteiro na sua página.

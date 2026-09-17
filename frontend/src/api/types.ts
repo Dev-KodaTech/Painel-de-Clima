@@ -576,3 +576,24 @@ export type Conta = {
 export type QuemSouResponse = {
   conta: Conta | null;
 };
+
+/**
+ * Um plano: o que alguem pretende fazer num dia, guardado na sua conta.
+ *
+ * Espelha `PlanoSaida` do backend, e **nao traz clima nenhum** — nem icone,
+ * nem temperatura, nem aptidao. E a regra do verbete *Plano*: clima guardado
+ * envelhece, e alguem veria a previsao de anteontem sem saber que e de
+ * anteontem. O plano guarda intencao; a aptidao que aparece ao lado dele na
+ * faixa vem do horizonte que a pagina ja buscou, cruzada na leitura.
+ *
+ * **Sem hora**, e `dia` e a data crua (`2026-09-22`) e nao um instante: a
+ * aptidao e diaria e o horizonte longo nao tem dado horario. Um campo de hora
+ * prometeria precisao que o dado nao tem — ver o verbete e o ADR 0010.
+ */
+export type Plano = {
+  id: number;
+  titulo: string;
+  /** Data local (`2026-09-22`), sem horario. A mesma forma de `DiaDoHorizonte.date`. */
+  dia: string;
+  atividade: Atividade;
+};

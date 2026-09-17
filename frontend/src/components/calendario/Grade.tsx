@@ -48,11 +48,29 @@ type Props = {
   units: UnidadesDaGrade;
   /** A atividade que pinta a grade, ou `null` no estado sem escolha. */
   atividade: Atividade | null;
+  /**
+   * As datas que tem plano, para a celula se marcar.
+   *
+   * Um `Set` pronto, e nao a lista de planos: a grade nao tem o que fazer com
+   * um plano — ela nao mostra titulo nem atividade —, e receber a lista a
+   * obrigaria a percorre-la uma vez por celula. Quem monta o conjunto e a
+   * pagina, com `diasComPlano()`.
+   *
+   * Vazio para quem nao tem conta, que e o estado em que a grade continua
+   * inteira: **a marca e a unica coisa que os planos acrescentam a ela.**
+   */
+  diasComPlano: Set<string>;
   /** Abre o detalhe de um dia. */
   onAbrirDia: (dia: DiaDoHorizonte) => void;
 };
 
-export function Grade({ dias, units, atividade, onAbrirDia }: Props) {
+export function Grade({
+  dias,
+  units,
+  atividade,
+  diasComPlano,
+  onAbrirDia,
+}: Props) {
   if (dias.length === 0) return null;
 
   const primeiro = dias[0];
@@ -107,6 +125,7 @@ export function Grade({ dias, units, atividade, onAbrirDia }: Props) {
             // que e onde a troca de modelo acontece.
             abreOHorizonteLongo={indice === inicioDoLongo}
             atividade={atividade}
+            temPlano={diasComPlano.has(dia.date)}
             onAbrir={onAbrirDia}
           />
         ))}

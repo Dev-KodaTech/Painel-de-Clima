@@ -55,10 +55,24 @@ export type UnidadesDoDetalhe = Pick<Units, "temperature" | "precipitation">;
 type Props = {
   dia: DiaDoHorizonte;
   units: UnidadesDoDetalhe;
+  /**
+   * O que entra abaixo das aptidoes — hoje, a criacao de plano.
+   *
+   * **Um slot, e nao props de plano.** O detalhe sabe desenhar um dia: a
+   * previsao e os quatro julgamentos. Ensina-lo a criar plano o faria depender
+   * de conta, de sessao e da lista que a pagina guarda — e ele passaria a ser
+   * um pedaco da metade da pagina que e da conta, quando o que ele mostra e
+   * publico e igual para todo mundo.
+   *
+   * Com o slot, quem nao tem conta abre o mesmo detalhe e simplesmente nao
+   * recebe formulario nenhum. E o que mantem a promessa de que **a pagina nao
+   * exige conta para nada alem dos planos**.
+   */
+  children?: React.ReactNode;
   onFechar: () => void;
 };
 
-export function DetalheDoDia({ dia, units, onFechar }: Props) {
+export function DetalheDoDia({ dia, units, children, onFechar }: Props) {
   const fechar = useRef<HTMLButtonElement>(null);
 
   // O foco entra no dialogo ao abrir e **volta para a celula ao fechar**. Sem a
@@ -137,6 +151,22 @@ export function DetalheDoDia({ dia, units, onFechar }: Props) {
             Este dia esta longe demais para julgar aptidao: a essa distancia a
             previsao ja nao sustenta conselho sobre lavar roupa ou plantar.
           </p>
+        )}
+
+        {/*
+          A criacao de plano, quando ha conta. Separada por uma linha: o que
+          esta acima e o mundo — a previsao e o julgamento, iguais para quem
+          abrir —, e o que esta abaixo e da pessoa.
+
+          Planejar um dia do horizonte longo **e permitido**, e por isso o
+          formulario nao some junto da aptidao: planejar longe e legitimo,
+          julgar longe e que nao. A faixa dira que aquele dia esta longe demais
+          para julgar; ela nao dira que o plano nao devia existir.
+        */}
+        {children && (
+          <div className="flex flex-col gap-3 border-t border-line pt-3">
+            {children}
+          </div>
         )}
       </div>
     </div>

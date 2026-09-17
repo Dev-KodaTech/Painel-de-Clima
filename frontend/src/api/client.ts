@@ -6,6 +6,7 @@
  */
 
 import type {
+  Atividade,
   Cidade,
   CidadeDoPainel,
   CidadesResponse,
@@ -14,6 +15,7 @@ import type {
   HorizonteResponse,
   Janela,
   NoticiasResponse,
+  Plano,
   QuemSouResponse,
   TrendsResponse,
   WeatherResponse,
@@ -44,6 +46,28 @@ export class ErroDeRede extends ErroDoPainel {}
  * e-mail. Tente entrar."), que e quem sabe o que dizer.
  */
 export class EmailJaUsado extends ErroDoPainel {}
+
+/**
+ * A sessao nao vale mais — o `401` de uma rota que exige conta.
+ *
+ * **Existe para que a pagina nao perca o que foi digitado.** E o caminho novo
+ * que a spec registra como risco: todo o resto do app e leitura publica ou
+ * formulario de conta, e nos dois a recusa acontece antes de haver texto a
+ * preservar. Aqui nao — quem digitou "lavar as cortinas" e apertou Criar tem
+ * uma frase na tela, e uma sessao que venceu no caminho nao pode leva-la
+ * junto.
+ *
+ * Distinta de `ErroDoPainel` pela **acao que a pessoa precisa tomar**, que e a
+ * mesma regra que separou `ErroDeRede`: "tente de novo" nao serve aqui, porque
+ * tentar de novo com a mesma sessao morta falha igual. O que resolve e entrar
+ * outra vez — e e por isso que quem trata este erro oferece o link de entrada
+ * em vez de um botao de repetir.
+ *
+ * A mensagem continua vindo do backend (`MSG_SEM_SESSAO`, "Entre para
+ * continuar."), que e quem sabe o que dizer e ja a escreve sem distinguir
+ * cookie ausente de sessao vencida.
+ */
+export class SessaoExpirada extends ErroDoPainel {}
 
 /**
  * A mensagem a exibir para uma falha qualquer.
@@ -123,11 +147,18 @@ async function lancarErroDaResposta(response: Response): Promise<never> {
     .catch(() => undefined);
 
   const mensagem = detalhe ?? MSG_SEM_DETALHE;
-  // O `409` do cadastro e o unico status que uma tela precisa distinguir pelo
-  // numero: ele diz *qual campo* corrigir. Os outros viram a mesma mensagem.
-  throw response.status === 409
-    ? new EmailJaUsado(mensagem)
-    : new ErroDoPainel(mensagem);
+  // Dois status que uma tela precisa distinguir pelo numero, e cada um diz uma
+  // coisa diferente sobre o que fazer a seguir:
+  //
+  // - `409` no cadastro diz **qual campo** corrigir;
+  // - `401` numa rota de conta diz que nao ha o que corrigir — e preciso
+  //   entrar de novo, e quem digitou algo nao pode perde-lo no caminho.
+  //
+  // Os outros viram a mesma mensagem, porque para eles a acao e a mesma:
+  // tentar de novo.
+  if (response.status === 409) throw new EmailJaUsado(mensagem);
+  if (response.status === 401) throw new SessaoExpirada(mensagem);
+  throw new ErroDoPainel(mensagem);
 }
 
 async function pegar<T>(caminho: string, sinal?: AbortSignal): Promise<T> {
@@ -348,4 +379,67 @@ export async function sair(): Promise<void> {
 export async function quemSou(sinal?: AbortSignal): Promise<Conta | null> {
   const corpo = await pegar<QuemSouResponse>("/api/quem-sou", sinal);
   return corpo.conta;
+}
+
+/**
+ * Os planos da conta, ordenados por dia.
+ *
+ * **`401` vira `SessaoExpirada`, e nao lista vazia.** A distincao e o que
+ * permite a pagina mostrar o convite para entrar em vez da faixa vazia da
+ * conta: "voce nao tem planos" e "voce nao esta identificado" sao fatos
+ * diferentes, e o backend os separa de proposito (ver o caso
+ * `test_listar_sem_sessao_da_401`).
+ *
+ * A pagina so chama isto quando ja sabe que ha conta, entao o `401` aqui
+ * significa que a sessao venceu entre o `quem-sou` e agora.
+ */
+export async function buscarPlanos(sinal?: AbortSignal): Promise<Plano[]> {
+  return pegar<Plano[]>("/api/planos", sinal);
+}
+
+/**
+ * Cria um plano na conta de quem esta pedindo.
+ *
+ * A conta **nao** viaja no corpo: ela vem da sessao, no cookie, e e isso que
+ * torna impossivel criar plano na conta alheia mesmo conhecendo o e-mail dela.
+ * O corpo carrega so o que a pessoa escolheu.
+ *
+ * Sem campo de hora, e nao por omissao: `dia` e a data crua. Ver o tipo
+ * `Plano`.
+ */
+export async function criarPlano(
+  titulo: string,
+  dia: string,
+  atividade: Atividade,
+): Promise<Plano> {
+  return enviar<Plano>("/api/planos", { titulo, dia, atividade });
+}
+
+/**
+ * Apaga um plano da conta. **A unica chamada `DELETE` do cliente.**
+ *
+ * Nao passa por `enviar`: aquele monta um `POST` e le JSON de volta, e aqui
+ * nao ha nem um nem outro — o backend responde `204` sem corpo, e um
+ * `response.json()` sobre corpo vazio lanca. Escrever o `fetch` aqui e menor
+ * que dar a `enviar` dois parametros (metodo e "tem corpo?") que so este
+ * chamador usaria.
+ *
+ * O `404` de plano alheio chega como `ErroDoPainel` comum, com a mensagem do
+ * backend — e ele e o **mesmo** `404` do plano que nao existe, de proposito
+ * (`403` confirmaria a existencia). Do lado de ca nao ha o que distinguir, e a
+ * frase "Plano nao encontrado." serve aos dois casos: em qualquer um deles a
+ * lista que a pagina redesenha nao tem mais aquele plano.
+ */
+export async function apagarPlano(id: number): Promise<void> {
+  let response: Response;
+  try {
+    response = await fetch(`/api/planos/${id}`, {
+      method: "DELETE",
+      credentials: "include",
+    });
+  } catch {
+    throw new ErroDeRede(MSG_DE_REDE);
+  }
+
+  if (!response.ok) await lancarErroDaResposta(response);
 }

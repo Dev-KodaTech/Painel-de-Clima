@@ -88,6 +88,27 @@ export function GrupoDeRadio<T>({
     >
       {opcoes.map((opcao, indice) => {
         const ativa = opcao.valor === escolhida;
+        /*
+          Quando **nenhuma** opcao esta selecionada, a primeira recebe a parada
+          de `Tab`.
+
+          E o padrao WAI-ARIA para o `radiogroup` sem escolha, e sem ele o grupo
+          inteiro fica inalcancavel: `tabIndex={ativa ? 0 : -1}` com nada ativo
+          da `-1` a todas as opcoes, e `Tab` pula o controle como se ele nao
+          existisse. O mouse continuava funcionando, entao o defeito so aparece
+          para quem navega por teclado.
+
+          O `SeletorDeAtividade` nunca o expos porque a sua primeira opcao e
+          "Nenhuma": ha sempre uma ativa. O `CriarPlano` expos na primeira vez
+          que existiu um grupo legitimamente sem escolha inicial — um plano
+          **precisa** de atividade, entao ali nao ha opcao neutra a oferecer.
+
+          A correcao mora aqui, e nao em quem chama, porque a promessa quebrada
+          e a do papel `radiogroup`: qualquer grupo futuro sem escolha inicial
+          herdaria a mesma armadilha.
+        */
+        const primeiraSemEscolha =
+          indice === 0 && !opcoes.some((outra) => outra.valor === escolhida);
         return (
           <button
             key={String(opcao.valor)}
@@ -98,7 +119,7 @@ export function GrupoDeRadio<T>({
             // e a opcao ativa que a recebe. Sem isto, tabular por uma pagina
             // com cinco atividades custaria cinco paradas para atravessar um
             // controle so.
-            tabIndex={ativa ? 0 : -1}
+            tabIndex={ativa || primeiraSemEscolha ? 0 : -1}
             onClick={() => onEscolher(opcao.valor)}
             onKeyDown={(evento) => aoTeclar(evento, indice)}
             className={`rounded-lg px-3 py-1.5 text-[12px] font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-brand/50 ${
